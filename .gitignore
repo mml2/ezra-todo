@@ -1,0 +1,85 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+*.cache
+*.dll
+*.exe
+*.pdb
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+.vs/
+.vscode/
+*.userprefs
+*.pidb
+*.DotSettings.user
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# .NET Core
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# Entity Framework
+*.mdf
+*.ldf
+*.ndf
+*.db
+*.db-shm
+*.db-wal
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Vite
+dist/
+dist-ssr/
+*.local
+
+# Editor directories and files
+.DS_Store
+*.sw?
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Testing
+coverage/
+*.cover
+.nyc_output
+.coverage
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Logs
+logs
+*.log
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+unpacked/
+
+# Claude Code personal settings
+.claude/settings.local.json
