@@ -15,6 +15,26 @@
 - **Frontend**: React with TypeScript (required)
 - **Testing**: xUnit (backend), Vitest (frontend)
 
+## Frontend Development Workflow
+
+**IMPORTANT: Use the `frontend-design` skill for all React component development.**
+
+When creating or modifying React components:
+1. **Invoke the skill**: Use `/frontend-design` or `Skill tool: frontend-design`
+2. **Provide context**: Describe the component purpose, user audience, and aesthetic direction
+3. **Follow skill guidance**: Implement distinctive, production-grade UI with:
+   - Bold typography choices (avoid generic fonts like Inter, Roboto)
+   - Cohesive color schemes with CSS variables
+   - Thoughtful animations and micro-interactions
+   - Unique spatial composition and layouts
+   - Contextual visual details and effects
+
+**Aesthetic Philosophy:**
+- Prioritize distinctive, memorable design over generic patterns
+- Match implementation complexity to aesthetic vision
+- Execute chosen direction (minimal or maximal) with precision
+- Test all visual implementations for production quality
+
 ## .NET/C# Conventions
 
 ### Code Style
