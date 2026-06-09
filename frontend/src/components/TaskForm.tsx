@@ -55,7 +55,6 @@ export default function TaskForm({ task, onSuccess, onCancel }: TaskFormProps) {
 
     try {
       if (task) {
-        // Update existing task
         await updateTask.mutateAsync({
           id: task.id,
           data: {
@@ -67,7 +66,6 @@ export default function TaskForm({ task, onSuccess, onCancel }: TaskFormProps) {
           },
         });
       } else {
-        // Create new task
         await createTask.mutateAsync({
           title: formData.title,
           description: formData.description || undefined,
@@ -85,15 +83,27 @@ export default function TaskForm({ task, onSuccess, onCancel }: TaskFormProps) {
   const isSubmitting = createTask.isPending || updateTask.isPending;
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <h3 className="text-lg font-semibold text-gray-900">
-        {task ? 'Edit Task' : 'Create New Task'}
-      </h3>
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="border-b border-[var(--color-mist)] pb-4">
+        <h3
+          style={{ fontFamily: 'var(--font-serif)', color: 'var(--color-ink)' }}
+          className="text-3xl font-bold"
+        >
+          {task ? 'Edit Task' : 'New Task'}
+        </h3>
+        <p style={{ color: 'var(--color-stone)' }} className="text-sm mt-1">
+          {task ? 'Update task details below' : 'Fill in the details to create a new task'}
+        </p>
+      </div>
 
       {/* Title */}
       <div>
-        <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
-          Title *
+        <label
+          htmlFor="title"
+          style={{ fontFamily: 'var(--font-serif)', color: 'var(--color-ink)' }}
+          className="block text-sm font-semibold mb-2 uppercase tracking-wide"
+        >
+          Title <span style={{ color: 'var(--color-ruby)' }}>*</span>
         </label>
         <input
           type="text"
@@ -101,77 +111,103 @@ export default function TaskForm({ task, onSuccess, onCancel }: TaskFormProps) {
           value={formData.title}
           onChange={(e) => setFormData({ ...formData, title: e.target.value })}
           className={`w-full border ${
-            errors.title ? 'border-red-500' : 'border-gray-300'
-          } rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500`}
+            errors.title ? 'border-[var(--color-ruby)]' : 'border-[var(--color-mist)]'
+          } rounded-sm px-4 py-3 focus:outline-none focus:border-[var(--color-amber)] focus:ring-2 focus:ring-[var(--color-amber)] focus:ring-opacity-20 transition-all`}
+          style={{ fontFamily: 'var(--font-sans)' }}
           disabled={isSubmitting}
+          placeholder="Enter task title..."
         />
-        {errors.title && <p className="text-red-600 text-sm mt-1">{errors.title}</p>}
+        {errors.title && (
+          <p style={{ color: 'var(--color-ruby)' }} className="text-xs mt-2 font-semibold">
+            ⚠ {errors.title}
+          </p>
+        )}
       </div>
 
       {/* Description */}
       <div>
-        <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+        <label
+          htmlFor="description"
+          style={{ fontFamily: 'var(--font-serif)', color: 'var(--color-ink)' }}
+          className="block text-sm font-semibold mb-2 uppercase tracking-wide"
+        >
           Description
         </label>
         <textarea
           id="description"
           value={formData.description}
           onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-          rows={3}
+          rows={4}
           className={`w-full border ${
-            errors.description ? 'border-red-500' : 'border-gray-300'
-          } rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500`}
+            errors.description ? 'border-[var(--color-ruby)]' : 'border-[var(--color-mist)]'
+          } rounded-sm px-4 py-3 focus:outline-none focus:border-[var(--color-amber)] focus:ring-2 focus:ring-[var(--color-amber)] focus:ring-opacity-20 transition-all resize-none`}
+          style={{ fontFamily: 'var(--font-sans)' }}
           disabled={isSubmitting}
+          placeholder="Add additional details..."
         />
-        {errors.description && <p className="text-red-600 text-sm mt-1">{errors.description}</p>}
+        {errors.description && (
+          <p style={{ color: 'var(--color-ruby)' }} className="text-xs mt-2 font-semibold">
+            ⚠ {errors.description}
+          </p>
+        )}
       </div>
 
-      {/* Priority and Status */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Priority and Status Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
-          <label htmlFor="priority" className="block text-sm font-medium text-gray-700 mb-1">
-            Priority *
+          <label
+            htmlFor="priority"
+            style={{ fontFamily: 'var(--font-serif)', color: 'var(--color-ink)' }}
+            className="block text-sm font-semibold mb-2 uppercase tracking-wide"
+          >
+            Priority <span style={{ color: 'var(--color-ruby)' }}>*</span>
           </label>
           <select
             id="priority"
             value={formData.priority}
             onChange={(e) => setFormData({ ...formData, priority: e.target.value as TaskPriority })}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="select-editorial w-full"
             disabled={isSubmitting}
             required
           >
-            <option value={TaskPriority.Low}>Low</option>
-            <option value={TaskPriority.Medium}>Medium</option>
-            <option value={TaskPriority.High}>High</option>
+            <option value={TaskPriority.Low}>Low Priority</option>
+            <option value={TaskPriority.Medium}>Medium Priority</option>
+            <option value={TaskPriority.High}>High Priority</option>
           </select>
-          <p className="text-xs text-gray-500 mt-1">Required field - defaults to Medium</p>
         </div>
 
         {task && (
           <div>
-            <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
-              Status *
+            <label
+              htmlFor="status"
+              style={{ fontFamily: 'var(--font-serif)', color: 'var(--color-ink)' }}
+              className="block text-sm font-semibold mb-2 uppercase tracking-wide"
+            >
+              Status <span style={{ color: 'var(--color-ruby)' }}>*</span>
             </label>
             <select
               id="status"
               value={formData.status}
               onChange={(e) => setFormData({ ...formData, status: e.target.value as TaskStatus })}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="select-editorial w-full"
               disabled={isSubmitting}
               required
             >
-              <option value={TaskStatus.Todo}>Todo</option>
+              <option value={TaskStatus.Todo}>To Do</option>
               <option value={TaskStatus.InProgress}>In Progress</option>
               <option value={TaskStatus.Done}>Done</option>
             </select>
-            <p className="text-xs text-gray-500 mt-1">Required field</p>
           </div>
         )}
       </div>
 
       {/* Due Date */}
       <div>
-        <label htmlFor="dueDate" className="block text-sm font-medium text-gray-700 mb-1">
+        <label
+          htmlFor="dueDate"
+          style={{ fontFamily: 'var(--font-serif)', color: 'var(--color-ink)' }}
+          className="block text-sm font-semibold mb-2 uppercase tracking-wide"
+        >
           Due Date
         </label>
         <input
@@ -180,35 +216,53 @@ export default function TaskForm({ task, onSuccess, onCancel }: TaskFormProps) {
           value={formData.dueDate}
           onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
           className={`w-full border ${
-            errors.dueDate ? 'border-red-500' : 'border-gray-300'
-          } rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500`}
+            errors.dueDate ? 'border-[var(--color-ruby)]' : 'border-[var(--color-mist)]'
+          } rounded-sm px-4 py-3 focus:outline-none focus:border-[var(--color-amber)] focus:ring-2 focus:ring-[var(--color-amber)] focus:ring-opacity-20 transition-all`}
+          style={{ fontFamily: 'var(--font-sans)' }}
           disabled={isSubmitting}
         />
-        {errors.dueDate && <p className="text-red-600 text-sm mt-1">{errors.dueDate}</p>}
+        {errors.dueDate && (
+          <p style={{ color: 'var(--color-ruby)' }} className="text-xs mt-2 font-semibold">
+            ⚠ {errors.dueDate}
+          </p>
+        )}
       </div>
 
       {/* Submit Error */}
       {errors.submit && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-          <p className="text-red-800 text-sm">{errors.submit}</p>
+        <div className="editorial-card p-4" style={{ background: 'rgba(220, 38, 38, 0.05)', borderColor: 'var(--color-ruby)' }}>
+          <p style={{ color: 'var(--color-ruby)' }} className="text-sm font-semibold">
+            ⚠ {errors.submit}
+          </p>
         </div>
       )}
 
       {/* Actions */}
-      <div className="flex gap-3 pt-2">
+      <div className="flex gap-3 pt-4 border-t border-[var(--color-mist)]">
         <button
           type="submit"
           disabled={isSubmitting}
-          className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+          className="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {isSubmitting ? 'Saving...' : task ? 'Update Task' : 'Create Task'}
+          {isSubmitting ? (
+            <span className="flex items-center justify-center gap-2">
+              <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              Saving...
+            </span>
+          ) : (
+            task ? '✓ Update Task' : '+ Create Task'
+          )}
         </button>
         {onCancel && (
           <button
             type="button"
             onClick={onCancel}
             disabled={isSubmitting}
-            className="flex-1 bg-gray-200 hover:bg-gray-300 disabled:bg-gray-100 text-gray-800 font-medium py-2 px-4 rounded-lg transition-colors"
+            className="flex-1 px-6 py-3 text-sm font-semibold uppercase tracking-wide rounded-sm transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+              background: 'var(--color-mist)',
+              color: 'var(--color-stone)',
+            }}
           >
             Cancel
           </button>

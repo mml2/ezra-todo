@@ -1,7 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { taskApi } from '../services/api';
 import type {
-  Task,
   CreateTaskDto,
   UpdateTaskDto,
   UpdateTaskStatusDto,

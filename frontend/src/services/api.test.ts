@@ -259,13 +259,8 @@ describe('taskApi', () => {
     it('should handle request configuration errors', async () => {
       const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-      // Temporarily break the axios instance by forcing an invalid config
-      const originalGet = taskApi.getAll;
-
       // This will trigger an error in request setup
       await expect(async () => {
-        // Force an error by calling with an invalid URL format
-        const apiClient = (await import('./api')).default;
         throw new Error('Request setup error');
       }).rejects.toThrow();
 
