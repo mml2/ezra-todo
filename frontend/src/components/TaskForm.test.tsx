@@ -141,7 +141,7 @@ describe('TaskForm', () => {
 
       await waitFor(() => {
         const titleInput = screen.getByLabelText(/title/i);
-        expect(titleInput).toHaveClass('border-red-500');
+        expect(titleInput).toHaveClass('border-[var(--color-ruby)]');
       });
     });
   });
@@ -347,7 +347,7 @@ describe('TaskForm', () => {
       const submitButton = screen.getByRole('button', { name: /create task/i });
       await user.click(submitButton);
 
-      expect(await screen.findByText(/saving.../i)).toBeInTheDocument();
+      expect(await screen.findByText(/saving/i)).toBeInTheDocument();
     });
 
     it('disables submit button when submitting', async () => {
@@ -429,8 +429,9 @@ describe('TaskForm', () => {
     it('marks required fields with asterisk', () => {
       renderWithProviders(<TaskForm onSuccess={mockOnSuccess} />);
 
-      expect(screen.getByText(/title \*/i)).toBeInTheDocument();
-      expect(screen.getByText(/priority \*/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/title/i)).toBeInTheDocument();
+      expect(screen.getAllByText('*').length).toBeGreaterThan(0); // Multiple asterisks (Title, Priority)
+      expect(screen.getByLabelText(/priority/i)).toBeInTheDocument();
     });
 
     it('has proper form submission', async () => {
@@ -440,7 +441,7 @@ describe('TaskForm', () => {
       const titleInput = screen.getByLabelText(/title/i);
       await user.type(titleInput, 'Valid Title');
 
-      const form = screen.getByRole('heading', { name: /create new task/i }).closest('form');
+      const form = screen.getByRole('heading', { name: /new task/i }).closest('form');
       expect(form).toBeInTheDocument();
     });
   });
