@@ -29,7 +29,7 @@ describe('TaskForm', () => {
     it('renders create form with empty fields', () => {
       renderWithProviders(<TaskForm onSuccess={mockOnSuccess} />);
 
-      expect(screen.getByRole('heading', { name: /create new task/i })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /new task/i })).toBeInTheDocument();
       expect(screen.getByLabelText(/title/i)).toHaveValue('');
       expect(screen.getByLabelText(/description/i)).toHaveValue('');
       expect(screen.getByLabelText(/priority/i)).toHaveValue(TaskPriority.Medium);

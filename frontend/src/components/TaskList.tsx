@@ -10,7 +10,6 @@ export default function TaskList() {
   const [filterStatus, setFilterStatus] = useState<TaskStatus | 'All'>('All');
   const [filterPriority, setFilterPriority] = useState<TaskPriority | 'All'>('All');
 
-  // Reset to page 1 when filters change
   const handleFilterChange = (type: 'status' | 'priority', value: string) => {
     setPage(1);
     if (type === 'status') {
@@ -20,7 +19,6 @@ export default function TaskList() {
     }
   };
 
-  // Use paginated endpoint when no filters, otherwise fetch all tasks for filtering
   const hasFilters = filterStatus !== 'All' || filterPriority !== 'All';
   const { data: allTasks, isLoading: isLoadingAll, error: errorAll } = useTasks();
   const { data: pagedData, isLoading: isLoadingPaged, error: errorPaged } = useTasksPaged(page, 20);
@@ -30,26 +28,34 @@ export default function TaskList() {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="flex justify-center items-center h-screen">
+        <div className="text-center animate-fade-in">
+          <div className="inline-block w-16 h-16 border-4 border-[var(--color-mist)] border-t-[var(--color-amber)] rounded-full animate-spin mb-4"></div>
+          <p style={{ fontFamily: 'var(--font-serif)', color: 'var(--color-stone)' }} className="text-sm uppercase tracking-widest">
+            Loading Tasks
+          </p>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-        <p className="text-red-800">
-          Error loading tasks. Make sure the backend is running at localhost:5000
-        </p>
+      <div className="max-w-2xl mx-auto mt-20 animate-slide-up">
+        <div className="editorial-card accent-border p-8">
+          <h2 style={{ fontFamily: 'var(--font-serif)', color: 'var(--color-ruby)' }} className="text-2xl mb-3">
+            Connection Error
+          </h2>
+          <p style={{ color: 'var(--color-stone)' }} className="text-sm leading-relaxed">
+            Unable to connect to the backend server. Please ensure the API is running at <code className="px-2 py-1 bg-[var(--color-mist)] rounded">localhost:5000</code>
+          </p>
+        </div>
       </div>
     );
   }
 
-  // When filtering, use all tasks; otherwise use paginated data
   const allTasksList = allTasks || [];
   const pagedTasksList = pagedData?.items || [];
-
   let displayTasks = hasFilters ? allTasksList : pagedTasksList;
 
   const filteredTasks = displayTasks.filter((task) => {
@@ -58,9 +64,7 @@ export default function TaskList() {
     return true;
   });
 
-  // For filtered view, paginate client-side
   let paginatedFilteredTasks = filteredTasks;
-  let currentPage = page;
   let totalFilteredPages = 1;
   let hasNext = false;
   let hasPrev = false;
@@ -83,183 +87,213 @@ export default function TaskList() {
   };
 
   return (
-    <div className="space-y-5">
-      {/* Stats Summary */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg shadow-sm border border-blue-100 p-6">
-        <h2 className="text-lg font-semibold text-gray-800 mb-4">Task Overview</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-white rounded-lg p-4 shadow-sm">
-            <p className="text-xs text-gray-500 uppercase font-medium mb-1">Total Tasks</p>
-            <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-          </div>
-          <div className="bg-white rounded-lg p-4 shadow-sm">
-            <p className="text-xs text-gray-500 uppercase font-medium mb-1">To Do</p>
-            <p className="text-2xl font-bold text-gray-600">{stats.todo}</p>
-          </div>
-          <div className="bg-white rounded-lg p-4 shadow-sm">
-            <p className="text-xs text-blue-600 uppercase font-medium mb-1">In Progress</p>
-            <p className="text-2xl font-bold text-blue-600">{stats.inProgress}</p>
-          </div>
-          <div className="bg-white rounded-lg p-4 shadow-sm">
-            <p className="text-xs text-green-600 uppercase font-medium mb-1">Done</p>
-            <p className="text-2xl font-bold text-green-600">{stats.done}</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Info Text */}
-      <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
-        <p className="text-sm text-gray-700">
-          Manage your tasks efficiently. Use filters to find specific tasks by status or priority.
-          Each page displays up to 20 tasks.
-        </p>
-      </div>
-
-      {/* Create Task Form */}
-      {showForm && (
-        <div className="bg-white shadow-sm rounded-lg p-6 border border-gray-200">
-          <TaskForm onSuccess={() => setShowForm(false)} />
-        </div>
-      )}
-
-      {/* Filters and Actions Bar */}
-      <div className="bg-white rounded-lg shadow-sm p-3 border border-gray-200 mt-2">
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div className="flex items-center gap-3 flex-wrap">
-            <span className="text-sm font-medium text-gray-600">Filter:</span>
-
-            <select
-              value={filterStatus}
-              onChange={(e) => handleFilterChange('status', e.target.value)}
-              className="border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-            >
-              <option value="All">All Status</option>
-              <option value={TaskStatus.Todo}>Todo</option>
-              <option value={TaskStatus.InProgress}>In Progress</option>
-              <option value={TaskStatus.Done}>Done</option>
-            </select>
-
-            <select
-              value={filterPriority}
-              onChange={(e) => handleFilterChange('priority', e.target.value)}
-              className="border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-            >
-              <option value="All">All Priorities</option>
-              <option value={TaskPriority.Low}>Low</option>
-              <option value={TaskPriority.Medium}>Medium</option>
-              <option value={TaskPriority.High}>High</option>
-            </select>
-
-            {(filterStatus !== 'All' || filterPriority !== 'All') && (
-              <button
-                onClick={() => {
-                  setPage(1);
-                  setFilterStatus('All');
-                  setFilterPriority('All');
-                }}
-                className="text-sm text-blue-600 hover:text-blue-800 font-medium"
-              >
-                Clear Filters
-              </button>
-            )}
-          </div>
-
-          <button
-            onClick={() => setShowForm(!showForm)}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-5 rounded-md transition-colors text-sm"
+    <div className="min-h-screen py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <header className="mb-12 animate-slide-up">
+          <h1
+            style={{ fontFamily: 'var(--font-serif)', color: 'var(--color-ink)' }}
+            className="text-5xl sm:text-6xl lg:text-7xl font-bold mb-4 leading-none"
           >
-            {showForm ? 'Cancel' : '+ New Task'}
-          </button>
-        </div>
-      </div>
+            Task Manager
+          </h1>
+          <p style={{ color: 'var(--color-stone)' }} className="text-lg max-w-2xl">
+            An editorial approach to productivity. Curate your work with precision and intention.
+          </p>
+        </header>
 
-      {/* Task Table */}
-      {filteredTasks && filteredTasks.length > 0 ? (
-        <>
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-100">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      Title
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      Description
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      Priority
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      Due Date
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      Created
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {(hasFilters ? paginatedFilteredTasks : filteredTasks).map((task) => (
-                    <TaskItem key={task.id} task={task} />
-                  ))}
-                </tbody>
-              </table>
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8 animate-slide-up stagger-1">
+          <div className="editorial-card p-6 group cursor-default">
+            <div className="flex items-start justify-between mb-3">
+              <span style={{ fontFamily: 'var(--font-serif)', color: 'var(--color-stone)' }} className="text-xs uppercase tracking-widest font-semibold">
+                Total
+              </span>
+              <div className="w-2 h-2 rounded-full bg-[var(--color-ink)] opacity-30 group-hover:opacity-100 transition-opacity"></div>
             </div>
+            <p style={{ fontFamily: 'var(--font-serif)', color: 'var(--color-ink)' }} className="text-4xl font-bold">
+              {stats.total}
+            </p>
           </div>
 
-          {/* Pagination Controls */}
-          {((hasFilters && totalFilteredPages > 1) || (!hasFilters && pagedData && pagedData.totalPages > 1)) && (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-gray-600">
-                  Page {page} of {hasFilters ? totalFilteredPages : pagedData?.totalPages}
-                  <span className="ml-2 text-gray-500">
-                    ({hasFilters ? filteredTasks.length : pagedData?.totalCount} {hasFilters ? 'filtered' : 'total'} tasks)
-                  </span>
+          <div className="editorial-card p-6 group cursor-default">
+            <div className="flex items-start justify-between mb-3">
+              <span style={{ fontFamily: 'var(--font-serif)', color: 'var(--color-stone)' }} className="text-xs uppercase tracking-widest font-semibold">
+                To Do
+              </span>
+              <div className="w-2 h-2 rounded-full bg-[var(--color-stone)] opacity-50 group-hover:opacity-100 transition-opacity"></div>
+            </div>
+            <p style={{ fontFamily: 'var(--font-serif)', color: 'var(--color-stone)' }} className="text-4xl font-bold">
+              {stats.todo}
+            </p>
+          </div>
+
+          <div className="editorial-card p-6 group cursor-default accent-border">
+            <div className="flex items-start justify-between mb-3">
+              <span style={{ fontFamily: 'var(--font-serif)', color: 'var(--color-amber)' }} className="text-xs uppercase tracking-widest font-semibold">
+                Active
+              </span>
+              <div className="w-2 h-2 rounded-full bg-[var(--color-amber)] opacity-50 group-hover:opacity-100 group-hover:animate-pulse transition-opacity"></div>
+            </div>
+            <p style={{ fontFamily: 'var(--font-serif)', color: 'var(--color-amber)' }} className="text-4xl font-bold">
+              {stats.inProgress}
+            </p>
+          </div>
+
+          <div className="editorial-card p-6 group cursor-default">
+            <div className="flex items-start justify-between mb-3">
+              <span style={{ fontFamily: 'var(--font-serif)', color: 'var(--color-emerald)' }} className="text-xs uppercase tracking-widest font-semibold">
+                Complete
+              </span>
+              <div className="w-2 h-2 rounded-full bg-[var(--color-emerald)] opacity-50 group-hover:opacity-100 transition-opacity"></div>
+            </div>
+            <p style={{ fontFamily: 'var(--font-serif)', color: 'var(--color-emerald)' }} className="text-4xl font-bold">
+              {stats.done}
+            </p>
+          </div>
+        </div>
+
+        {/* Controls Bar */}
+        <div className="editorial-card p-6 mb-8 animate-slide-up stagger-2">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-3 flex-1 flex-wrap">
+              <span style={{ fontFamily: 'var(--font-serif)', color: 'var(--color-ink)' }} className="text-sm font-semibold uppercase tracking-wide">
+                Filter
+              </span>
+
+              <select
+                value={filterStatus}
+                onChange={(e) => handleFilterChange('status', e.target.value)}
+                className="select-editorial"
+              >
+                <option value="All">All Status</option>
+                <option value={TaskStatus.Todo}>To Do</option>
+                <option value={TaskStatus.InProgress}>In Progress</option>
+                <option value={TaskStatus.Done}>Done</option>
+              </select>
+
+              <select
+                value={filterPriority}
+                onChange={(e) => handleFilterChange('priority', e.target.value)}
+                className="select-editorial"
+              >
+                <option value="All">All Priorities</option>
+                <option value={TaskPriority.Low}>Low</option>
+                <option value={TaskPriority.Medium}>Medium</option>
+                <option value={TaskPriority.High}>High</option>
+              </select>
+
+              {(filterStatus !== 'All' || filterPriority !== 'All') && (
+                <button
+                  onClick={() => {
+                    setPage(1);
+                    setFilterStatus('All');
+                    setFilterPriority('All');
+                  }}
+                  style={{ color: 'var(--color-amber)' }}
+                  className="text-sm font-semibold hover:underline transition-all uppercase tracking-wide"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+
+            <button
+              onClick={() => setShowForm(!showForm)}
+              className="btn-primary"
+            >
+              {showForm ? '✕ Cancel' : '+ New Task'}
+            </button>
+          </div>
+        </div>
+
+        {/* Create Form */}
+        {showForm && (
+          <div className="editorial-card accent-border p-8 mb-8 animate-scale-in">
+            <TaskForm onSuccess={() => setShowForm(false)} />
+          </div>
+        )}
+
+        {/* Task Grid */}
+        {filteredTasks && filteredTasks.length > 0 ? (
+          <>
+            <div className="space-y-3 mb-8">
+              {(hasFilters ? paginatedFilteredTasks : filteredTasks).map((task, index) => (
+                <div
+                  key={task.id}
+                  className="animate-slide-up"
+                  style={{ animationDelay: `${index * 0.05}s` }}
+                >
+                  <TaskItem task={task} />
                 </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setPage(page - 1)}
-                    disabled={hasFilters ? !hasPrev : !pagedData?.hasPreviousPage}
-                    className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                      (hasFilters ? hasPrev : pagedData?.hasPreviousPage)
-                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                        : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                    }`}
-                  >
-                    Previous
-                  </button>
-                  <button
-                    onClick={() => setPage(page + 1)}
-                    disabled={hasFilters ? !hasNext : !pagedData?.hasNextPage}
-                    className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                      (hasFilters ? hasNext : pagedData?.hasNextPage)
-                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                        : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                    }`}
-                  >
-                    Next
-                  </button>
+              ))}
+            </div>
+
+            {/* Pagination */}
+            {((hasFilters && totalFilteredPages > 1) || (!hasFilters && pagedData && pagedData.totalPages > 1)) && (
+              <div className="editorial-card p-6 animate-fade-in">
+                <div className="flex items-center justify-between flex-wrap gap-4">
+                  <div style={{ color: 'var(--color-stone)' }} className="text-sm">
+                    <span style={{ fontFamily: 'var(--font-serif)' }} className="font-semibold text-[var(--color-ink)]">
+                      Page {page}
+                    </span>
+                    {' of '}
+                    <span style={{ fontFamily: 'var(--font-serif)' }} className="font-semibold text-[var(--color-ink)]">
+                      {hasFilters ? totalFilteredPages : pagedData?.totalPages}
+                    </span>
+                    <span className="ml-3 opacity-60">
+                      ({hasFilters ? filteredTasks.length : pagedData?.totalCount} {hasFilters ? 'filtered' : 'total'})
+                    </span>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setPage(page - 1)}
+                      disabled={hasFilters ? !hasPrev : !pagedData?.hasPreviousPage}
+                      className={`px-6 py-2.5 text-sm font-semibold uppercase tracking-wide rounded-sm transition-all ${
+                        (hasFilters ? hasPrev : pagedData?.hasPreviousPage)
+                          ? 'bg-[var(--color-ink)] text-white hover:bg-[var(--color-stone)] hover:shadow-lg hover:-translate-y-0.5'
+                          : 'bg-[var(--color-mist)] text-[var(--color-stone)] opacity-50 cursor-not-allowed'
+                      }`}
+                    >
+                      ← Prev
+                    </button>
+                    <button
+                      onClick={() => setPage(page + 1)}
+                      disabled={hasFilters ? !hasNext : !pagedData?.hasNextPage}
+                      className={`px-6 py-2.5 text-sm font-semibold uppercase tracking-wide rounded-sm transition-all ${
+                        (hasFilters ? hasNext : pagedData?.hasNextPage)
+                          ? 'bg-[var(--color-ink)] text-white hover:bg-[var(--color-stone)] hover:shadow-lg hover:-translate-y-0.5'
+                          : 'bg-[var(--color-mist)] text-[var(--color-stone)] opacity-50 cursor-not-allowed'
+                      }`}
+                    >
+                      Next →
+                    </button>
+                  </div>
                 </div>
               </div>
+            )}
+          </>
+        ) : (
+          <div className="editorial-card p-20 text-center animate-fade-in">
+            <div className="max-w-md mx-auto">
+              <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-[var(--color-mist)] flex items-center justify-center">
+                <span className="text-3xl opacity-40">📝</span>
+              </div>
+              <p style={{ fontFamily: 'var(--font-serif)', color: 'var(--color-stone)' }} className="text-xl mb-2">
+                {displayTasks && displayTasks.length > 0
+                  ? 'No tasks match your filters'
+                  : 'Your task list is empty'}
+              </p>
+              <p style={{ color: 'var(--color-stone)' }} className="text-sm opacity-60">
+                {displayTasks && displayTasks.length > 0
+                  ? 'Try adjusting your filter criteria'
+                  : 'Click "New Task" above to begin'}
+              </p>
             </div>
-          )}
-        </>
-      ) : (
-        <div className="bg-white rounded-lg shadow-sm p-16 text-center border border-gray-200">
-          <p className="text-gray-500 text-base">
-            {displayTasks && displayTasks.length > 0
-              ? 'No tasks match the current filters'
-              : 'No tasks yet. Click "+ New Task" to get started.'}
-          </p>
-        </div>
-      )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

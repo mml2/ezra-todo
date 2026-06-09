@@ -30,7 +30,7 @@ export default function TaskItem({ task }: TaskItemProps) {
   };
 
   const formatDate = (dateString?: string) => {
-    if (!dateString) return '-';
+    if (!dateString) return null;
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
       month: 'short',
@@ -43,78 +43,175 @@ export default function TaskItem({ task }: TaskItemProps) {
 
   if (isEditing) {
     return (
-      <tr>
-        <td colSpan={7} className="p-4 bg-gray-50">
-          <TaskForm
-            task={task}
-            onSuccess={() => setIsEditing(false)}
-            onCancel={() => setIsEditing(false)}
-          />
-        </td>
-      </tr>
+      <div className="editorial-card accent-border p-8 animate-scale-in">
+        <TaskForm
+          task={task}
+          onSuccess={() => setIsEditing(false)}
+          onCancel={() => setIsEditing(false)}
+        />
+      </div>
     );
   }
 
+  const priorityColors = {
+    [TaskPriority.Low]: 'var(--color-stone)',
+    [TaskPriority.Medium]: 'var(--color-amber)',
+    [TaskPriority.High]: 'var(--color-ruby)',
+  };
+
   return (
-    <tr className="border-b hover:bg-gray-50">
-      <td className="px-4 py-3">
-        <span className={task.status === TaskStatus.Done ? 'line-through text-gray-500' : 'text-gray-900'}>
-          {task.title}
-        </span>
-      </td>
-      <td className="px-4 py-3 text-gray-600 text-sm">
-        {task.description || '-'}
-      </td>
-      <td className="px-4 py-3">
-        <select
-          value={task.status}
-          onChange={handleStatusChange}
-          disabled={updateStatus.isPending}
-          className="text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value={TaskStatus.Todo}>Todo</option>
-          <option value={TaskStatus.InProgress}>In Progress</option>
-          <option value={TaskStatus.Done}>Done</option>
-        </select>
-      </td>
-      <td className="px-4 py-3">
-        <select
-          value={task.priority}
-          onChange={handlePriorityChange}
-          disabled={updateTask.isPending}
-          className="text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value={TaskPriority.Low}>Low</option>
-          <option value={TaskPriority.Medium}>Medium</option>
-          <option value={TaskPriority.High}>High</option>
-        </select>
-      </td>
-      <td className="px-4 py-3 text-sm text-gray-600">
-        <span className={isOverdue ? 'text-red-600 font-medium' : ''}>
-          {formatDate(task.dueDate)}
-          {isOverdue && ' (Overdue)'}
-        </span>
-      </td>
-      <td className="px-4 py-3 text-sm text-gray-500">
-        {formatDate(task.createdAt)}
-      </td>
-      <td className="px-4 py-3">
-        <div className="flex gap-2">
-          <button
-            onClick={() => setIsEditing(true)}
-            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-          >
-            Update
-          </button>
-          <button
-            onClick={handleDelete}
-            disabled={deleteTask.isPending}
-            className="text-red-600 hover:text-red-800 text-sm font-medium disabled:opacity-50"
-          >
-            Delete
-          </button>
+    <div className="editorial-card group relative overflow-hidden">
+      {/* Priority Accent Bar */}
+      <div
+        className="absolute top-0 left-0 w-1 h-full transition-all group-hover:w-1.5"
+        style={{ background: priorityColors[task.priority] }}
+      />
+
+      <div className="p-6 pl-8">
+        <div className="flex items-start justify-between gap-6">
+          {/* Main Content */}
+          <div className="flex-1 min-w-0">
+            {/* Title & Status Row */}
+            <div className="flex items-start gap-4 mb-3">
+              <h3
+                style={{
+                  fontFamily: 'var(--font-serif)',
+                  color: task.status === TaskStatus.Done ? 'var(--color-stone)' : 'var(--color-ink)',
+                }}
+                className={`text-xl font-semibold leading-tight transition-all ${
+                  task.status === TaskStatus.Done ? 'line-through opacity-60' : ''
+                }`}
+              >
+                {task.title}
+              </h3>
+
+              {/* Status Badge */}
+              <span
+                className={`status-badge flex-shrink-0 ${
+                  task.status === TaskStatus.Todo
+                    ? 'status-todo'
+                    : task.status === TaskStatus.InProgress
+                    ? 'status-in-progress'
+                    : 'status-done'
+                }`}
+              >
+                <span
+                  className={`priority-dot ${
+                    task.priority === TaskPriority.Low
+                      ? 'priority-low'
+                      : task.priority === TaskPriority.Medium
+                      ? 'priority-medium'
+                      : 'priority-high'
+                  }`}
+                />
+                {task.status === TaskStatus.Todo ? 'To Do' : task.status === TaskStatus.InProgress ? 'Active' : 'Done'}
+              </span>
+            </div>
+
+            {/* Description */}
+            {task.description && (
+              <p style={{ color: 'var(--color-stone)' }} className="text-sm leading-relaxed mb-4 max-w-3xl">
+                {task.description}
+              </p>
+            )}
+
+            {/* Metadata Row */}
+            <div className="flex flex-wrap items-center gap-4 text-xs" style={{ color: 'var(--color-stone)' }}>
+              {/* Created Date */}
+              <div className="flex items-center gap-2">
+                <span className="opacity-60 uppercase tracking-wider">Created</span>
+                <span style={{ fontFamily: 'var(--font-serif)' }} className="font-semibold">
+                  {formatDate(task.createdAt)}
+                </span>
+              </div>
+
+              {/* Due Date */}
+              {task.dueDate && (
+                <>
+                  <span className="opacity-30">•</span>
+                  <div className="flex items-center gap-2">
+                    <span className="opacity-60 uppercase tracking-wider">Due</span>
+                    <span
+                      style={{
+                        fontFamily: 'var(--font-serif)',
+                        color: isOverdue ? 'var(--color-ruby)' : 'inherit',
+                      }}
+                      className="font-semibold"
+                    >
+                      {formatDate(task.dueDate)}
+                      {isOverdue && (
+                        <span className="ml-2 px-2 py-0.5 bg-red-100 text-red-700 rounded uppercase text-[10px] font-bold tracking-wide">
+                          Overdue
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                </>
+              )}
+
+              {/* Priority */}
+              <span className="opacity-30">•</span>
+              <div className="flex items-center gap-2">
+                <span className="opacity-60 uppercase tracking-wider">Priority</span>
+                <select
+                  value={task.priority}
+                  onChange={handlePriorityChange}
+                  disabled={updateTask.isPending}
+                  className="text-xs font-semibold uppercase tracking-wide border-none bg-transparent cursor-pointer hover:opacity-80 transition-opacity"
+                  style={{ color: priorityColors[task.priority] }}
+                >
+                  <option value={TaskPriority.Low}>Low</option>
+                  <option value={TaskPriority.Medium}>Medium</option>
+                  <option value={TaskPriority.High}>High</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Actions Column */}
+          <div className="flex flex-col gap-3 flex-shrink-0">
+            {/* Status Selector */}
+            <select
+              value={task.status}
+              onChange={handleStatusChange}
+              disabled={updateStatus.isPending}
+              className="select-editorial text-xs py-2"
+            >
+              <option value={TaskStatus.Todo}>To Do</option>
+              <option value={TaskStatus.InProgress}>In Progress</option>
+              <option value={TaskStatus.Done}>Done</option>
+            </select>
+
+            {/* Action Buttons */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setIsEditing(true)}
+                className="px-4 py-2 text-xs font-semibold uppercase tracking-wide rounded-sm transition-all hover:-translate-y-0.5"
+                style={{
+                  background: 'var(--color-ink)',
+                  color: 'white',
+                }}
+              >
+                Edit
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleteTask.isPending}
+                className="px-4 py-2 text-xs font-semibold uppercase tracking-wide rounded-sm transition-all hover:-translate-y-0.5 disabled:opacity-50"
+                style={{
+                  background: 'var(--color-ruby)',
+                  color: 'white',
+                }}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
         </div>
-      </td>
-    </tr>
+      </div>
+
+      {/* Hover Effect Gradient */}
+      <div className="absolute inset-0 bg-gradient-to-r from-transparent to-amber-50 opacity-0 group-hover:opacity-5 transition-opacity pointer-events-none" />
+    </div>
   );
 }
