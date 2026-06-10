@@ -297,4 +297,60 @@ public class TasksControllerTests : IClassFixture<WebApplicationFactory<Program>
         // Assert
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
+
+    [Theory]
+    [InlineData(0, 20)]
+    [InlineData(-1, 20)]
+    public async Task GetTasks_ReturnsBadRequest_WhenPageIsLessThanOne(int page, int pageSize)
+    {
+        // Act
+        var response = await _client.GetAsync($"/api/tasks?page={page}&pageSize={pageSize}");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData(1, 0)]
+    [InlineData(1, 1000)]
+    public async Task GetTasks_ReturnsBadRequest_WhenPageSizeIsOutOfBounds(int page, int pageSize)
+    {
+        // Act
+        var response = await _client.GetAsync($"/api/tasks?page={page}&pageSize={pageSize}");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateTask_ReturnsBadRequest_WhenPriorityIsInvalidEnumValue()
+    {
+        // Arrange - "Urgent" is not a valid TaskPriority; JsonStringEnumConverter rejects it at binding
+        var content = new StringContent(
+            """{"title":"Task","description":null,"priority":"Urgent","dueDate":null}""",
+            System.Text.Encoding.UTF8,
+            "application/json");
+
+        // Act
+        var response = await _client.PostAsync("/api/tasks", content);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UpdateTask_ReturnsBadRequest_WhenStatusIsInvalidEnumValue()
+    {
+        // Arrange - "Archived" is not a valid TaskStatus
+        var content = new StringContent(
+            """{"title":"Task","status":"Archived"}""",
+            System.Text.Encoding.UTF8,
+            "application/json");
+
+        // Act
+        var response = await _client.PutAsync("/api/tasks/1", content);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
 }

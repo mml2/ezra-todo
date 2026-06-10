@@ -320,4 +320,190 @@ public class TaskServiceTests
         Assert.Equal(404, result.StatusCode);
         Assert.Equal("Task not found", result.Error);
     }
+
+    [Fact]
+    public async Task CreateTaskAsync_WithInvalidPriority_ReturnsBadRequest()
+    {
+        // Arrange
+        var dto = new CreateTaskDto(
+            Title: "Valid Title",
+            Description: null,
+            Priority: (TaskPriority)99,
+            DueDate: null
+        );
+
+        // Act
+        var result = await _service.CreateTaskAsync(dto);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.Equal("Invalid priority value", result.Error);
+        _mockRepository.Verify(r => r.CreateAsync(It.IsAny<TodoTask>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task UpdateTaskAsync_WithInvalidStatus_ReturnsBadRequest()
+    {
+        // Arrange
+        var dto = new UpdateTaskDto(
+            Title: null,
+            Description: null,
+            Status: (TaskStatus)99,
+            Priority: null,
+            DueDate: null
+        );
+
+        // Act
+        var result = await _service.UpdateTaskAsync(1, dto);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.Equal("Invalid status value", result.Error);
+        _mockRepository.Verify(r => r.UpdateAsync(It.IsAny<int>(), It.IsAny<TodoTask>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task UpdateTaskAsync_WithInvalidPriority_ReturnsBadRequest()
+    {
+        // Arrange
+        var dto = new UpdateTaskDto(
+            Title: null,
+            Description: null,
+            Status: null,
+            Priority: (TaskPriority)99,
+            DueDate: null
+        );
+
+        // Act
+        var result = await _service.UpdateTaskAsync(1, dto);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.Equal("Invalid priority value", result.Error);
+        _mockRepository.Verify(r => r.UpdateAsync(It.IsAny<int>(), It.IsAny<TodoTask>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task UpdateTaskStatusAsync_WithInvalidStatus_ReturnsBadRequest()
+    {
+        // Arrange
+        var dto = new UpdateTaskStatusDto((TaskStatus)99);
+
+        // Act
+        var result = await _service.UpdateTaskStatusAsync(1, dto);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.Equal("Invalid status value", result.Error);
+        _mockRepository.Verify(r => r.UpdateAsync(It.IsAny<int>(), It.IsAny<TodoTask>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task UpdateTaskAsync_WithNullFields_PreservesExistingValues()
+    {
+        // Arrange
+        var dueDate = DateTime.UtcNow.AddDays(3);
+        var existingTask = new TodoTask
+        {
+            Id = 1,
+            Title = "Existing Title",
+            Description = "Existing Description",
+            Status = TaskStatus.InProgress,
+            Priority = TaskPriority.High,
+            DueDate = dueDate,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        var dto = new UpdateTaskDto(
+            Title: null,
+            Description: null,
+            Status: null,
+            Priority: null,
+            DueDate: null
+        );
+
+        TodoTask? capturedTask = null;
+        _mockRepository.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(existingTask);
+        _mockRepository.Setup(r => r.UpdateAsync(1, It.IsAny<TodoTask>()))
+            .Callback<int, TodoTask>((_, t) => capturedTask = t)
+            .ReturnsAsync(existingTask);
+
+        // Act
+        var result = await _service.UpdateTaskAsync(1, dto);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(capturedTask);
+        Assert.Equal("Existing Title", capturedTask.Title);
+        Assert.Equal("Existing Description", capturedTask.Description);
+        Assert.Equal(TaskStatus.InProgress, capturedTask.Status);
+        Assert.Equal(TaskPriority.High, capturedTask.Priority);
+        Assert.Equal(dueDate, capturedTask.DueDate);
+    }
+
+    [Theory]
+    [InlineData(0, 20)]
+    [InlineData(-1, 20)]
+    public async Task GetTasksPagedAsync_WithPageLessThanOne_ReturnsBadRequest(int page, int pageSize)
+    {
+        // Act
+        var result = await _service.GetTasksPagedAsync(page, pageSize);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.Equal("Page must be greater than 0", result.Error);
+        _mockRepository.Verify(r => r.GetPagedAsync(It.IsAny<int>(), It.IsAny<int>()), Times.Never);
+    }
+
+    [Theory]
+    [InlineData(1, 0)]
+    [InlineData(1, -5)]
+    [InlineData(1, 101)]
+    [InlineData(1, 1000)]
+    public async Task GetTasksPagedAsync_WithInvalidPageSize_ReturnsBadRequest(int page, int pageSize)
+    {
+        // Act
+        var result = await _service.GetTasksPagedAsync(page, pageSize);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.Equal("PageSize must be between 1 and 100", result.Error);
+        _mockRepository.Verify(r => r.GetPagedAsync(It.IsAny<int>(), It.IsAny<int>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task GetTasksPagedAsync_WithValidParams_ReturnsPagedResult()
+    {
+        // Arrange
+        var pagedTasks = new PagedResult<TodoTask>
+        {
+            Items = new List<TodoTask>
+            {
+                new() { Id = 1, Title = "Task 1", Status = TaskStatus.Todo, Priority = TaskPriority.Medium, CreatedAt = DateTime.UtcNow }
+            },
+            TotalCount = 25,
+            Page = 2,
+            PageSize = 20
+        };
+        _mockRepository.Setup(r => r.GetPagedAsync(2, 20)).ReturnsAsync(pagedTasks);
+
+        // Act
+        var result = await _service.GetTasksPagedAsync(2, 20);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal(200, result.StatusCode);
+        Assert.NotNull(result.Data);
+        Assert.Single(result.Data.Items);
+        Assert.Equal(25, result.Data.TotalCount);
+        Assert.Equal(2, result.Data.Page);
+        Assert.Equal(20, result.Data.PageSize);
+        Assert.Equal(2, result.Data.TotalPages);
+    }
 }

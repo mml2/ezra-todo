@@ -281,4 +281,91 @@ public class TaskRepositoryTests : IDisposable
         // Assert
         Assert.False(result);
     }
+
+    [Fact]
+    public async Task GetPagedAsync_ReturnsCorrectSlice()
+    {
+        // Arrange - 5 tasks with distinct creation times (newest first ordering)
+        await SeedTasksAsync(5);
+
+        // Act - page 2 with pageSize 2 should return the 3rd and 4th newest tasks
+        var result = await _repository.GetPagedAsync(page: 2, pageSize: 2);
+
+        // Assert
+        Assert.Equal(2, result.Items.Count());
+        Assert.Equal("Task 3", result.Items.First().Title);
+        Assert.Equal("Task 2", result.Items.Last().Title);
+        Assert.Equal(2, result.Page);
+        Assert.Equal(2, result.PageSize);
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_OrdersByCreatedAtDescending()
+    {
+        // Arrange
+        await SeedTasksAsync(3);
+
+        // Act
+        var result = await _repository.GetPagedAsync(page: 1, pageSize: 10);
+
+        // Assert - newest task first
+        var titles = result.Items.Select(t => t.Title).ToList();
+        Assert.Equal(new[] { "Task 3", "Task 2", "Task 1" }, titles);
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_ReturnsTotalCountExcludingSoftDeleted()
+    {
+        // Arrange
+        await SeedTasksAsync(3);
+        var deletedTask = new TodoTask
+        {
+            Title = "Deleted Task",
+            Status = TaskStatus.Todo,
+            Priority = TaskPriority.Low,
+            CreatedAt = DateTime.UtcNow,
+            IsDeleted = true
+        };
+        await _context.Tasks.AddAsync(deletedTask);
+        await _context.SaveChangesAsync();
+
+        // Act
+        var result = await _repository.GetPagedAsync(page: 1, pageSize: 2);
+
+        // Assert - TotalCount reflects all non-deleted tasks, not just the page
+        Assert.Equal(3, result.TotalCount);
+        Assert.Equal(2, result.Items.Count());
+        Assert.DoesNotContain(result.Items, t => t.Title == "Deleted Task");
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_BeyondLastPage_ReturnsEmptyItems()
+    {
+        // Arrange
+        await SeedTasksAsync(3);
+
+        // Act
+        var result = await _repository.GetPagedAsync(page: 5, pageSize: 10);
+
+        // Assert
+        Assert.Empty(result.Items);
+        Assert.Equal(3, result.TotalCount);
+    }
+
+    private async Task SeedTasksAsync(int count)
+    {
+        // Stagger CreatedAt so "Task {count}" is the newest
+        var baseTime = DateTime.UtcNow.AddHours(-count);
+        for (var i = 1; i <= count; i++)
+        {
+            await _context.Tasks.AddAsync(new TodoTask
+            {
+                Title = $"Task {i}",
+                Status = TaskStatus.Todo,
+                Priority = TaskPriority.Medium,
+                CreatedAt = baseTime.AddMinutes(i)
+            });
+        }
+        await _context.SaveChangesAsync();
+    }
 }
