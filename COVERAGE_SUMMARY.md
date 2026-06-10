@@ -35,8 +35,6 @@
 (the sandbox used for this update has no .NET SDK). Coverage estimate based on the
 new tests exercising every previously uncovered validation branch.
 
-**Details:** See `COVERAGE_ANALYSIS.md`
-
 ---
 
 ## Frontend Coverage: 96.4% ✅
@@ -64,8 +62,6 @@ new tests exercising every previously uncovered validation branch.
 **Known issue:** 5 TaskForm tests are environment-sensitive (submission "pending state"
 assertions race against an unmocked API call, and one date test depends on local
 timezone). They pre-date this update and are unrelated to the new TaskList suite.
-
-**Details:** See `FRONTEND_COVERAGE_ANALYSIS.md`
 
 ---
 
@@ -152,10 +148,8 @@ open coverage/index.html
 4. Implement ADR-007 auth test-first, then add the ~8 auth tests listed above
 5. Update README with coverage badges
 
-## Files Created
+## Related Files
 
-- `COVERAGE_ANALYSIS.md` - Backend coverage details
-- `FRONTEND_COVERAGE_ANALYSIS.md` - Frontend coverage details
 - `run-coverage.sh` - Backend coverage script
 - `frontend/setup-coverage.sh` - Frontend coverage setup
-- `COVERAGE_SUMMARY.md` - This file
+- `COVERAGE_SUMMARY.md` - This file (single source of truth for coverage status)
