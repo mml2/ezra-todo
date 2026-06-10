@@ -1,6 +1,8 @@
 using System.Data.Common;
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -15,6 +17,13 @@ namespace TodoApi.Tests.Controllers;
 
 public class TasksControllerTests : IClassFixture<WebApplicationFactory<Program>>, IDisposable
 {
+    // API serializes enums as strings (JsonStringEnumConverter in Program.cs),
+    // so response deserialization needs the same converter
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        Converters = { new JsonStringEnumConverter() }
+    };
+
     private readonly WebApplicationFactory<Program> _factory;
     private readonly HttpClient _client;
     private readonly DbConnection _connection;
@@ -66,7 +75,7 @@ public class TasksControllerTests : IClassFixture<WebApplicationFactory<Program>
 
         // Assert
         response.EnsureSuccessStatusCode();
-        var tasks = await response.Content.ReadFromJsonAsync<IEnumerable<TaskResponseDto>>();
+        var tasks = await response.Content.ReadFromJsonAsync<IEnumerable<TaskResponseDto>>(JsonOptions);
         Assert.NotNull(tasks);
         Assert.Empty(tasks);
     }
@@ -91,7 +100,7 @@ public class TasksControllerTests : IClassFixture<WebApplicationFactory<Program>
 
         // Assert
         response.EnsureSuccessStatusCode();
-        var tasks = await response.Content.ReadFromJsonAsync<IEnumerable<TaskResponseDto>>();
+        var tasks = await response.Content.ReadFromJsonAsync<IEnumerable<TaskResponseDto>>(JsonOptions);
         Assert.NotNull(tasks);
         Assert.Single(tasks);
         Assert.Equal("Test Task", tasks.First().Title);
@@ -119,7 +128,7 @@ public class TasksControllerTests : IClassFixture<WebApplicationFactory<Program>
 
         // Assert
         response.EnsureSuccessStatusCode();
-        var returnedTask = await response.Content.ReadFromJsonAsync<TaskResponseDto>();
+        var returnedTask = await response.Content.ReadFromJsonAsync<TaskResponseDto>(JsonOptions);
         Assert.NotNull(returnedTask);
         Assert.Equal("Test Task", returnedTask.Title);
         Assert.Equal("Test Description", returnedTask.Description);
@@ -151,7 +160,7 @@ public class TasksControllerTests : IClassFixture<WebApplicationFactory<Program>
 
         // Assert
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        var createdTask = await response.Content.ReadFromJsonAsync<TaskResponseDto>();
+        var createdTask = await response.Content.ReadFromJsonAsync<TaskResponseDto>(JsonOptions);
         Assert.NotNull(createdTask);
         Assert.Equal("New Task", createdTask.Title);
         Assert.Equal("New Description", createdTask.Description);
@@ -206,7 +215,7 @@ public class TasksControllerTests : IClassFixture<WebApplicationFactory<Program>
 
         // Assert
         response.EnsureSuccessStatusCode();
-        var updatedTask = await response.Content.ReadFromJsonAsync<TaskResponseDto>();
+        var updatedTask = await response.Content.ReadFromJsonAsync<TaskResponseDto>(JsonOptions);
         Assert.NotNull(updatedTask);
         Assert.Equal("Updated Title", updatedTask.Title);
         Assert.Equal("Updated Description", updatedTask.Description);
@@ -256,7 +265,7 @@ public class TasksControllerTests : IClassFixture<WebApplicationFactory<Program>
 
         // Assert
         response.EnsureSuccessStatusCode();
-        var updatedTask = await response.Content.ReadFromJsonAsync<TaskResponseDto>();
+        var updatedTask = await response.Content.ReadFromJsonAsync<TaskResponseDto>(JsonOptions);
         Assert.NotNull(updatedTask);
         Assert.Equal(TaskStatus.Done, updatedTask.Status);
     }

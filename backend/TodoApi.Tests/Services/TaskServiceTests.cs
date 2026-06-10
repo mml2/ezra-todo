@@ -203,6 +203,8 @@ public class TaskServiceTests
             UpdatedAt = DateTime.UtcNow
         };
 
+        // Service fetches the existing task before updating, so GetByIdAsync must be mocked
+        _mockRepository.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(existingTask);
         _mockRepository.Setup(r => r.UpdateAsync(1, It.IsAny<TodoTask>())).ReturnsAsync(updatedTask);
 
         // Act

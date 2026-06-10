@@ -1,6 +1,8 @@
 using System.Data.Common;
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -21,6 +23,13 @@ namespace TodoApi.Tests.Integration;
 /// </summary>
 public class TasksApiIntegrationTests : IClassFixture<WebApplicationFactory<Program>>, IDisposable
 {
+    // API serializes enums as strings (JsonStringEnumConverter in Program.cs),
+    // so response deserialization needs the same converter
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        Converters = { new JsonStringEnumConverter() }
+    };
+
     private readonly WebApplicationFactory<Program> _factory;
     private readonly HttpClient _client;
     private readonly DbConnection _connection;
@@ -107,7 +116,7 @@ public class TasksApiIntegrationTests : IClassFixture<WebApplicationFactory<Prog
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var dto = await response.Content.ReadFromJsonAsync<TaskResponseDto>();
+        var dto = await response.Content.ReadFromJsonAsync<TaskResponseDto>(JsonOptions);
         Assert.NotNull(dto);
         Assert.Equal(task.Id, dto.Id);
         Assert.Equal("Single Task", dto.Title);
@@ -142,7 +151,7 @@ public class TasksApiIntegrationTests : IClassFixture<WebApplicationFactory<Prog
         // Assert
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
 
-        var created = await response.Content.ReadFromJsonAsync<TaskResponseDto>();
+        var created = await response.Content.ReadFromJsonAsync<TaskResponseDto>(JsonOptions);
         Assert.NotNull(created);
         Assert.Equal("Created via HTTP", created.Title);
         Assert.Equal(TaskStatus.Todo, created.Status);
@@ -174,7 +183,7 @@ public class TasksApiIntegrationTests : IClassFixture<WebApplicationFactory<Prog
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var updated = await response.Content.ReadFromJsonAsync<TaskResponseDto>();
+        var updated = await response.Content.ReadFromJsonAsync<TaskResponseDto>(JsonOptions);
         Assert.NotNull(updated);
         Assert.Equal("After Update", updated.Title);
         Assert.Equal(TaskStatus.Done, updated.Status);
