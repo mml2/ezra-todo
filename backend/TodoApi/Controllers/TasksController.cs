@@ -53,7 +53,8 @@ public class TasksController : ControllerBase
         if (!result.Success)
             return StatusCode(result.StatusCode, new { error = result.Error });
 
-        return StatusCode(result.StatusCode, result.Data);
+        // 201 Created with Location header pointing at the new resource (REST convention)
+        return CreatedAtAction(nameof(GetTask), new { id = result.Data!.Id }, result.Data);
     }
 
     [HttpPut("{id}")]
