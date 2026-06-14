@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using TodoApi.Data;
 using TodoApi.DTOs;
 using TodoApi.Models;
@@ -8,10 +9,12 @@ namespace TodoApi.Services;
 public class TaskService : ITaskService
 {
     private readonly ITaskRepository _repository;
+    private readonly ILogger<TaskService> _logger;
 
-    public TaskService(ITaskRepository repository)
+    public TaskService(ITaskRepository repository, ILogger<TaskService> logger)
     {
         _repository = repository;
+        _logger = logger;
     }
 
     public async Task<Result<IEnumerable<TaskResponseDto>>> GetAllTasksAsync()
@@ -54,7 +57,9 @@ public class TaskService : ITaskService
 
     public async Task<Result<TaskResponseDto>> CreateTaskAsync(CreateTaskDto dto)
     {
-        // Validation - ensure all required fields are present
+        _logger.LogInformation("Creating task: {Title}", dto.Title);
+
+        // Validation - Defense in depth (also validated at controller boundary with FluentValidation)
         if (string.IsNullOrWhiteSpace(dto.Title))
             return Result<TaskResponseDto>.Fail("Title is required", 400);
 
@@ -68,11 +73,6 @@ public class TaskService : ITaskService
         if (!Enum.IsDefined(typeof(TaskPriority), dto.Priority))
             return Result<TaskResponseDto>.Fail("Invalid priority value", 400);
 
-        // Create entity with all required fields
-        // - Title: validated above (required, non-empty)
-        // - Status: always set to Todo for new tasks
-        // - Priority: validated above (required enum)
-        // - CreatedAt: set by repository layer
         var task = new TodoTask
         {
             Title = dto.Title,
@@ -85,6 +85,7 @@ public class TaskService : ITaskService
         };
 
         var createdTask = await _repository.CreateAsync(task);
+        _logger.LogInformation("Task created: {TaskId}", createdTask.Id);
         return new Result<TaskResponseDto>
         {
             Success = true,
@@ -95,7 +96,9 @@ public class TaskService : ITaskService
 
     public async Task<Result<TaskResponseDto>> UpdateTaskAsync(int id, UpdateTaskDto dto)
     {
-        // Validation
+        _logger.LogInformation("Updating task: {TaskId}", id);
+
+        // Validation - Defense in depth (also validated at controller boundary with FluentValidation)
         if (dto.Title != null && string.IsNullOrWhiteSpace(dto.Title))
             return Result<TaskResponseDto>.Fail("Title cannot be empty", 400);
 
@@ -136,7 +139,9 @@ public class TaskService : ITaskService
 
     public async Task<Result<TaskResponseDto>> UpdateTaskStatusAsync(int id, UpdateTaskStatusDto dto)
     {
-        // Validate status is a valid enum value
+        _logger.LogInformation("Updating status for task {TaskId} to {Status}", id, dto.Status);
+
+        // Validation - Defense in depth (also validated at controller boundary with FluentValidation)
         if (!Enum.IsDefined(typeof(TaskStatus), dto.Status))
             return Result<TaskResponseDto>.Fail("Invalid status value", 400);
 
@@ -145,9 +150,16 @@ public class TaskService : ITaskService
         if (existingTask == null)
             return Result<TaskResponseDto>.Fail("Task not found", 404);
 
-        existingTask.Status = dto.Status;
+        var task = new TodoTask
+        {
+            Title = existingTask.Title,
+            Description = existingTask.Description,
+            Status = dto.Status,
+            Priority = existingTask.Priority,
+            DueDate = existingTask.DueDate
+        };
 
-        var updatedTask = await _repository.UpdateAsync(id, existingTask);
+        var updatedTask = await _repository.UpdateAsync(id, task);
 
         if (updatedTask == null)
             return Result<TaskResponseDto>.Fail("Task not found", 404);
@@ -157,6 +169,8 @@ public class TaskService : ITaskService
 
     public async Task<Result<object>> DeleteTaskAsync(int id)
     {
+        _logger.LogInformation("Deleting task: {TaskId}", id);
+
         var deleted = await _repository.DeleteAsync(id);
 
         if (!deleted)

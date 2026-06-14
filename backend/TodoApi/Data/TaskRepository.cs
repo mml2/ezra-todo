@@ -15,6 +15,7 @@ public class TaskRepository : ITaskRepository
     public async Task<IEnumerable<TodoTask>> GetAllAsync()
     {
         return await _context.Tasks
+            .AsNoTracking()
             .OrderByDescending(t => t.CreatedAt)
             .ToListAsync();
     }
@@ -24,6 +25,7 @@ public class TaskRepository : ITaskRepository
         var totalCount = await _context.Tasks.CountAsync();
 
         var items = await _context.Tasks
+            .AsNoTracking()
             .OrderByDescending(t => t.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
@@ -41,6 +43,7 @@ public class TaskRepository : ITaskRepository
     public async Task<TodoTask?> GetByIdAsync(int id)
     {
         return await _context.Tasks
+            .AsNoTracking()
             .FirstOrDefaultAsync(t => t.Id == id);
     }
 

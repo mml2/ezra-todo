@@ -28,10 +28,12 @@ public class TodoDbContext : DbContext
                 .HasMaxLength(1000);
 
             entity.Property(e => e.Status)
-                .IsRequired();
+                .IsRequired()
+                .HasConversion<string>();
 
             entity.Property(e => e.Priority)
-                .IsRequired();
+                .IsRequired()
+                .HasConversion<string>();
 
             entity.Property(e => e.CreatedAt)
                 .IsRequired();
