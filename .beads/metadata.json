@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "ezra_todo",
+  "project_id": "4594e997-b2fc-4702-816b-b9869695a21a"
+}
