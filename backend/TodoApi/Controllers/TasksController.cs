@@ -1,3 +1,4 @@
+using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
 using TodoApi.DTOs;
 using TodoApi.Services;
@@ -9,10 +10,20 @@ namespace TodoApi.Controllers;
 public class TasksController : ControllerBase
 {
     private readonly ITaskService _service;
+    private readonly IValidator<CreateTaskDto> _createTaskValidator;
+    private readonly IValidator<UpdateTaskDto> _updateTaskValidator;
+    private readonly IValidator<UpdateTaskStatusDto> _updateTaskStatusValidator;
 
-    public TasksController(ITaskService service)
+    public TasksController(
+        ITaskService service,
+        IValidator<CreateTaskDto> createTaskValidator,
+        IValidator<UpdateTaskDto> updateTaskValidator,
+        IValidator<UpdateTaskStatusDto> updateTaskStatusValidator)
     {
         _service = service;
+        _createTaskValidator = createTaskValidator;
+        _updateTaskValidator = updateTaskValidator;
+        _updateTaskStatusValidator = updateTaskStatusValidator;
     }
 
     [HttpGet]
@@ -48,6 +59,11 @@ public class TasksController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> CreateTask([FromBody] CreateTaskDto dto)
     {
+        // Validate input
+        var validationResult = await _createTaskValidator.ValidateAsync(dto);
+        if (!validationResult.IsValid)
+            return BadRequest(new { errors = validationResult.ToDictionary() });
+
         var result = await _service.CreateTaskAsync(dto);
 
         if (!result.Success)
@@ -60,6 +76,11 @@ public class TasksController : ControllerBase
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateTask(int id, [FromBody] UpdateTaskDto dto)
     {
+        // Validate input
+        var validationResult = await _updateTaskValidator.ValidateAsync(dto);
+        if (!validationResult.IsValid)
+            return BadRequest(new { errors = validationResult.ToDictionary() });
+
         var result = await _service.UpdateTaskAsync(id, dto);
 
         if (!result.Success)
@@ -71,6 +92,11 @@ public class TasksController : ControllerBase
     [HttpPatch("{id}/status")]
     public async Task<IActionResult> UpdateTaskStatus(int id, [FromBody] UpdateTaskStatusDto dto)
     {
+        // Validate input
+        var validationResult = await _updateTaskStatusValidator.ValidateAsync(dto);
+        if (!validationResult.IsValid)
+            return BadRequest(new { errors = validationResult.ToDictionary() });
+
         var result = await _service.UpdateTaskStatusAsync(id, dto);
 
         if (!result.Success)

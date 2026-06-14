@@ -1,8 +1,21 @@
+using FluentValidation;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using System.Threading.RateLimiting;
+using Serilog;
 using TodoApi.Data;
 using TodoApi.Services;
+using TodoApi.Validators;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Configure Serilog
+builder.Host.UseSerilog((context, configuration) =>
+    configuration
+        .ReadFrom.Configuration(context.Configuration)
+        .WriteTo.Console()
+        .WriteTo.File("logs/log-.txt", rollingInterval: RollingInterval.Day)
+        .Enrich.FromLogContext());
 
 // Add services to the container
 builder.Services.AddDbContext<TodoDbContext>(options =>
@@ -11,6 +24,9 @@ builder.Services.AddDbContext<TodoDbContext>(options =>
 
 builder.Services.AddScoped<ITaskRepository, TaskRepository>();
 builder.Services.AddScoped<ITaskService, TaskService>();
+
+// Add FluentValidation
+builder.Services.AddValidatorsFromAssemblyContaining<CreateTaskDtoValidator>();
 
 // Add controllers with JSON options
 builder.Services.AddControllers()
@@ -21,6 +37,18 @@ builder.Services.AddControllers()
     });
 
 // TODO: Add Swagger/OpenAPI with .NET 10 compatible package
+
+// Add rate limiting
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddFixedWindowLimiter("api", limiterOptions =>
+    {
+        limiterOptions.Window = TimeSpan.FromMinutes(1);
+        limiterOptions.PermitLimit = 100;
+        limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        limiterOptions.QueueLimit = 0;
+    });
+});
 
 // Add CORS
 builder.Services.AddCors(options =>
@@ -36,11 +64,26 @@ builder.Services.AddCors(options =>
 var app = builder.Build();
 
 // Configure the HTTP request pipeline
-// TODO: Add Swagger UI when compatible package is available
+app.UseExceptionHandler("/error");
+
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+    app.UseHsts();
+}
+else
+{
+    app.UseDeveloperExceptionPage();
+}
 
 app.UseCors("AllowFrontend");
 
-app.MapControllers();
+app.UseRateLimiter();
+
+app.MapControllers().RequireRateLimiting("api");
+
+app.Map("/error", (HttpContext context) =>
+    Results.Problem(statusCode: context.Response.StatusCode));
 
 app.Run();
 

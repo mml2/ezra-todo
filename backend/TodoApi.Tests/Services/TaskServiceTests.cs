@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Moq;
 using TodoApi.Data;
 using TodoApi.DTOs;
@@ -16,7 +17,7 @@ public class TaskServiceTests
     public TaskServiceTests()
     {
         _mockRepository = new Mock<ITaskRepository>();
-        _service = new TaskService(_mockRepository.Object);
+        _service = new TaskService(_mockRepository.Object, Mock.Of<ILogger<TaskService>>());
     }
 
     [Fact]

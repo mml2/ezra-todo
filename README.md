@@ -208,6 +208,21 @@ PATCH  /api/tasks/{id}/status - Update task status
 GET    /health             - Health check
 ```
 
+### Validation Rules
+
+Enforced server-side in `TaskService` (returning `Result<T>` failures as HTTP 400) and mirrored client-side in `TaskForm` via Zod:
+
+| Field | Constraint | On violation |
+|-------|-----------|--------------|
+| Title | Required, non-empty, max 200 chars | 400 — "Title is required" / "Title must not exceed 200 characters" |
+| Description | Optional, max 1000 chars | 400 — "Description must not exceed 1000 characters" |
+| Status | Valid enum: `Todo`, `InProgress`, `Done` | 400 — "Invalid status value" |
+| Priority | Valid enum: `Low`, `Medium`, `High` | 400 — "Invalid priority value" |
+| DueDate | Optional; must be a future date (client-side) | Form error before submission |
+| CreatedAt | Set automatically (UTC) on create | — |
+
+Partial updates (PUT with null fields) preserve existing values — required fields can't be wiped. On create, `Status` defaults to `Todo`.
+
 ## Features
 
 ### Core Features

@@ -83,3 +83,8 @@ unpacked/
 
 # Claude Code personal settings
 .claude/settings.local.json
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+.beads-credential-key
+.beads/proxieddb/
