@@ -56,15 +56,63 @@ public class TasksApiIntegrationTests : IClassFixture<WebApplicationFactory<Prog
                 using var scope = sp.CreateScope();
                 var db = scope.ServiceProvider.GetRequiredService<TodoDbContext>();
                 db.Database.EnsureCreated();
+
+                // Seed demo users for tests
+                if (!db.Users.Any())
+                {
+                    db.Users.AddRange(
+                        new User
+                        {
+                            Id = 1,
+                            Username = "alice",
+                            PasswordHash = "AQAAAAIAAYagAAAAED9LUCdOa5OhgPPezSyWyqKypL7L2dsB/lmGD4Q0pmNoGeXdKEuYH3PZFK6OsQjJQw==",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new User
+                        {
+                            Id = 2,
+                            Username = "bob",
+                            PasswordHash = "AQAAAAIAAYagAAAAECDQtSX2Iop//8OB8GLUmMQT/l3BkvzahzBvn1GS8hF82HG9Y914cds1zehMnsnVTQ==",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+                        }
+                    );
+                    db.SaveChanges();
+                }
             });
         });
 
         _client = _factory.CreateClient();
+
+        // Authenticate as alice for all requests
+        InitializeAuthToken();
     }
 
     public void Dispose()
     {
         _connection?.Dispose();
+    }
+
+    private void InitializeAuthToken()
+    {
+        // Login as alice to get a token
+        var loginTask = Task.Run(async () =>
+        {
+            var loginDto = new LoginDto("alice", "Password123!");
+            var response = await _client.PostAsJsonAsync("/api/auth/login", loginDto);
+            if (response.IsSuccessStatusCode)
+            {
+                var content = await response.Content.ReadAsStringAsync();
+                var jsonDoc = JsonDocument.Parse(content);
+                if (jsonDoc.RootElement.TryGetProperty("token", out var tokenElement))
+                {
+                    return tokenElement.GetString();
+                }
+            }
+            throw new InvalidOperationException("Failed to obtain auth token");
+        });
+
+        var token = loginTask.Result;
+        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
     }
 
     private async Task<TodoTask> SeedTaskAsync(string title = "Seeded Task")
@@ -73,6 +121,7 @@ public class TasksApiIntegrationTests : IClassFixture<WebApplicationFactory<Prog
         var context = scope.ServiceProvider.GetRequiredService<TodoDbContext>();
         var task = new TodoTask
         {
+            UserId = 1,
             Title = title,
             Description = "Seeded Description",
             Status = TaskStatus.Todo,
@@ -82,6 +131,19 @@ public class TasksApiIntegrationTests : IClassFixture<WebApplicationFactory<Prog
         context.Tasks.Add(task);
         await context.SaveChangesAsync();
         return task;
+    }
+
+    [Fact]
+    public async Task GetTasks_ReturnsUnauthorized_WithoutAuthToken()
+    {
+        // Arrange - create unauthenticated client
+        var unauthClient = _factory.CreateClient();
+
+        // Act
+        var response = await unauthClient.GetAsync("/api/tasks");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
     [Fact]
@@ -248,6 +310,7 @@ public class TasksApiIntegrationTests : IClassFixture<WebApplicationFactory<Prog
         {
             context.Tasks.Add(new TodoTask
             {
+                UserId = 1,
                 Title = $"Integration Paged {n}",
                 Status = TaskStatus.Todo,
                 Priority = TaskPriority.Low,

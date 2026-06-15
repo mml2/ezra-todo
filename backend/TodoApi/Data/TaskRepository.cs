@@ -12,19 +12,21 @@ public class TaskRepository : ITaskRepository
         _context = context;
     }
 
-    public async Task<IEnumerable<TodoTask>> GetAllAsync()
+    public async Task<IEnumerable<TodoTask>> GetAllAsync(int userId)
     {
         return await _context.Tasks
             .AsNoTracking()
+            .Where(t => t.UserId == userId)
             .OrderByDescending(t => t.CreatedAt)
             .ToListAsync();
     }
 
-    public async Task<PagedResult<TodoTask>> GetPagedAsync(int page, int pageSize)
+    public async Task<PagedResult<TodoTask>> GetPagedAsync(int userId, int page, int pageSize)
     {
-        var countTask = _context.Tasks.CountAsync();
+        var countTask = _context.Tasks.Where(t => t.UserId == userId).CountAsync();
         var itemsTask = _context.Tasks
             .AsNoTracking()
+            .Where(t => t.UserId == userId)
             .OrderByDescending(t => t.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
@@ -41,11 +43,11 @@ public class TaskRepository : ITaskRepository
         };
     }
 
-    public async Task<TodoTask?> GetByIdAsync(int id)
+    public async Task<TodoTask?> GetByIdAsync(int id, int userId)
     {
         return await _context.Tasks
             .AsNoTracking()
-            .FirstOrDefaultAsync(t => t.Id == id);
+            .FirstOrDefaultAsync(t => t.Id == id && t.UserId == userId);
     }
 
     public async Task<TodoTask> CreateAsync(TodoTask task)
@@ -59,10 +61,10 @@ public class TaskRepository : ITaskRepository
         return task;
     }
 
-    public async Task<TodoTask?> UpdateAsync(int id, TodoTask task)
+    public async Task<TodoTask?> UpdateAsync(int id, int userId, TodoTask task)
     {
         var existingTask = await _context.Tasks
-            .FirstOrDefaultAsync(t => t.Id == id);
+            .FirstOrDefaultAsync(t => t.Id == id && t.UserId == userId);
 
         if (existingTask == null)
         {
@@ -81,10 +83,10 @@ public class TaskRepository : ITaskRepository
         return existingTask;
     }
 
-    public async Task<bool> DeleteAsync(int id)
+    public async Task<bool> DeleteAsync(int id, int userId)
     {
         var task = await _context.Tasks
-            .FirstOrDefaultAsync(t => t.Id == id);
+            .FirstOrDefaultAsync(t => t.Id == id && t.UserId == userId);
 
         if (task == null)
         {

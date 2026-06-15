@@ -17,14 +17,14 @@ public class TaskService : ITaskService
         _logger = logger;
     }
 
-    public async Task<Result<IEnumerable<TaskResponseDto>>> GetAllTasksAsync()
+    public async Task<Result<IEnumerable<TaskResponseDto>>> GetAllTasksAsync(int userId)
     {
-        var tasks = await _repository.GetAllAsync();
+        var tasks = await _repository.GetAllAsync(userId);
         var dtos = tasks.Select(MapToDto);
         return Result<IEnumerable<TaskResponseDto>>.Ok(dtos);
     }
 
-    public async Task<Result<PagedResult<TaskResponseDto>>> GetTasksPagedAsync(int page, int pageSize)
+    public async Task<Result<PagedResult<TaskResponseDto>>> GetTasksPagedAsync(int userId, int page, int pageSize)
     {
         if (page < 1)
             return Result<PagedResult<TaskResponseDto>>.Fail("Page must be greater than 0", 400);
@@ -32,7 +32,7 @@ public class TaskService : ITaskService
         if (pageSize < 1 || pageSize > 100)
             return Result<PagedResult<TaskResponseDto>>.Fail("PageSize must be between 1 and 100", 400);
 
-        var pagedTasks = await _repository.GetPagedAsync(page, pageSize);
+        var pagedTasks = await _repository.GetPagedAsync(userId, page, pageSize);
 
         var pagedDtos = new PagedResult<TaskResponseDto>
         {
@@ -45,9 +45,9 @@ public class TaskService : ITaskService
         return Result<PagedResult<TaskResponseDto>>.Ok(pagedDtos);
     }
 
-    public async Task<Result<TaskResponseDto>> GetTaskByIdAsync(int id)
+    public async Task<Result<TaskResponseDto>> GetTaskByIdAsync(int id, int userId)
     {
-        var task = await _repository.GetByIdAsync(id);
+        var task = await _repository.GetByIdAsync(id, userId);
 
         if (task == null)
             return Result<TaskResponseDto>.Fail("Task not found", 404);
@@ -55,7 +55,7 @@ public class TaskService : ITaskService
         return Result<TaskResponseDto>.Ok(MapToDto(task));
     }
 
-    public async Task<Result<TaskResponseDto>> CreateTaskAsync(CreateTaskDto dto)
+    public async Task<Result<TaskResponseDto>> CreateTaskAsync(int userId, CreateTaskDto dto)
     {
         _logger.LogInformation("Creating task: {Title}", dto.Title);
 
@@ -71,6 +71,7 @@ public class TaskService : ITaskService
 
         var task = new TodoTask
         {
+            UserId = userId,
             Title = dto.Title,
             Description = dto.Description,
             Status = TaskStatus.Todo,
@@ -88,7 +89,7 @@ public class TaskService : ITaskService
         };
     }
 
-    public async Task<Result<TaskResponseDto>> UpdateTaskAsync(int id, UpdateTaskDto dto)
+    public async Task<Result<TaskResponseDto>> UpdateTaskAsync(int id, int userId, UpdateTaskDto dto)
     {
         _logger.LogInformation("Updating task: {TaskId}", id);
 
@@ -103,7 +104,7 @@ public class TaskService : ITaskService
             return Result<TaskResponseDto>.Fail("Description must not exceed 1000 characters", 400);
 
         // Get existing task
-        var existingTask = await _repository.GetByIdAsync(id);
+        var existingTask = await _repository.GetByIdAsync(id, userId);
 
         if (existingTask == null)
             return Result<TaskResponseDto>.Fail("Task not found", 404);
@@ -112,6 +113,7 @@ public class TaskService : ITaskService
         // This ensures required fields (Title, Status, Priority) are never lost
         var task = new TodoTask
         {
+            UserId = existingTask.UserId,
             Title = dto.Title ?? existingTask.Title,
             Description = dto.Description ?? existingTask.Description,
             Status = dto.Status ?? existingTask.Status,
@@ -119,22 +121,23 @@ public class TaskService : ITaskService
             DueDate = dto.DueDate ?? existingTask.DueDate
         };
 
-        var updatedTask = await _repository.UpdateAsync(id, task);
+        var updatedTask = await _repository.UpdateAsync(id, userId, task);
 
         return Result<TaskResponseDto>.Ok(MapToDto(updatedTask!));
     }
 
-    public async Task<Result<TaskResponseDto>> UpdateTaskStatusAsync(int id, UpdateTaskStatusDto dto)
+    public async Task<Result<TaskResponseDto>> UpdateTaskStatusAsync(int id, int userId, UpdateTaskStatusDto dto)
     {
         _logger.LogInformation("Updating status for task {TaskId} to {Status}", id, dto.Status);
 
-        var existingTask = await _repository.GetByIdAsync(id);
+        var existingTask = await _repository.GetByIdAsync(id, userId);
 
         if (existingTask == null)
             return Result<TaskResponseDto>.Fail("Task not found", 404);
 
         var task = new TodoTask
         {
+            UserId = existingTask.UserId,
             Title = existingTask.Title,
             Description = existingTask.Description,
             Status = dto.Status,
@@ -142,7 +145,7 @@ public class TaskService : ITaskService
             DueDate = existingTask.DueDate
         };
 
-        var updatedTask = await _repository.UpdateAsync(id, task);
+        var updatedTask = await _repository.UpdateAsync(id, userId, task);
 
         if (updatedTask == null)
             return Result<TaskResponseDto>.Fail("Task not found", 404);
@@ -150,11 +153,11 @@ public class TaskService : ITaskService
         return Result<TaskResponseDto>.Ok(MapToDto(updatedTask));
     }
 
-    public async Task<Result<object>> DeleteTaskAsync(int id)
+    public async Task<Result<object>> DeleteTaskAsync(int id, int userId)
     {
         _logger.LogInformation("Deleting task: {TaskId}", id);
 
-        var deleted = await _repository.DeleteAsync(id);
+        var deleted = await _repository.DeleteAsync(id, userId);
 
         if (!deleted)
             return Result<object>.Fail("Task not found", 404);

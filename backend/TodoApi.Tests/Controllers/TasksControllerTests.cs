@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -10,6 +11,7 @@ using Microsoft.Extensions.DependencyInjection;
 using TodoApi.Data;
 using TodoApi.DTOs;
 using TodoApi.Models;
+using TodoApi.Services;
 using Xunit;
 using TaskStatus = TodoApi.Models.TaskStatus;
 
@@ -27,6 +29,7 @@ public class TasksControllerTests : IClassFixture<WebApplicationFactory<Program>
     private readonly WebApplicationFactory<Program> _factory;
     private readonly HttpClient _client;
     private readonly DbConnection _connection;
+    private string? _authToken;
 
     public TasksControllerTests(WebApplicationFactory<Program> factory)
     {
@@ -56,15 +59,68 @@ public class TasksControllerTests : IClassFixture<WebApplicationFactory<Program>
                 using var scope = sp.CreateScope();
                 var db = scope.ServiceProvider.GetRequiredService<TodoDbContext>();
                 db.Database.EnsureCreated();
+
+                // Seed a test user (alice)
+                if (!db.Users.Any())
+                {
+                    var user = new User
+                    {
+                        Id = 1,
+                        Username = "alice",
+                        PasswordHash = "AQAAAAIAAYagAAAAED9LUCdOa5OhgPPezSyWyqKypL7L2dsB/lmGD4Q0pmNoGeXdKEuYH3PZFK6OsQjJQw==",
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    db.Users.Add(user);
+                    db.SaveChanges();
+                }
             });
         });
 
         _client = _factory.CreateClient();
+
+        // Authenticate as alice for all requests
+        InitializeAuthToken();
+    }
+
+    private void InitializeAuthToken()
+    {
+        // Login as alice to get a token
+        var loginTask = Task.Run(async () =>
+        {
+            var loginDto = new LoginDto("alice", "Password123!");
+            var response = await _client.PostAsJsonAsync("/api/auth/login", loginDto);
+            if (response.IsSuccessStatusCode)
+            {
+                var content = await response.Content.ReadAsStringAsync();
+                var jsonDoc = JsonDocument.Parse(content);
+                if (jsonDoc.RootElement.TryGetProperty("token", out var tokenElement))
+                {
+                    return tokenElement.GetString();
+                }
+            }
+            throw new InvalidOperationException("Failed to obtain auth token");
+        });
+
+        _authToken = loginTask.Result;
+        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _authToken);
     }
 
     public void Dispose()
     {
         _connection?.Dispose();
+    }
+
+    [Fact]
+    public async Task GetTasks_ReturnsUnauthorized_WithoutAuthToken()
+    {
+        // Arrange - create an unauthenticated client
+        var unauthClient = _factory.CreateClient();
+
+        // Act
+        var response = await unauthClient.GetAsync("/api/tasks");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
     [Fact]
@@ -88,6 +144,7 @@ public class TasksControllerTests : IClassFixture<WebApplicationFactory<Program>
         var context = scope.ServiceProvider.GetRequiredService<TodoDbContext>();
         context.Tasks.Add(new TodoTask
         {
+            UserId = 1,
             Title = "Test Task",
             Status = TaskStatus.Todo,
             Priority = TaskPriority.Medium,
@@ -114,6 +171,7 @@ public class TasksControllerTests : IClassFixture<WebApplicationFactory<Program>
         var context = scope.ServiceProvider.GetRequiredService<TodoDbContext>();
         var task = new TodoTask
         {
+            UserId = 1,
             Title = "Test Task",
             Description = "Test Description",
             Status = TaskStatus.Todo,
@@ -194,6 +252,7 @@ public class TasksControllerTests : IClassFixture<WebApplicationFactory<Program>
         var context = scope.ServiceProvider.GetRequiredService<TodoDbContext>();
         var task = new TodoTask
         {
+            UserId = 1,
             Title = "Original Title",
             Status = TaskStatus.Todo,
             Priority = TaskPriority.Low,
@@ -250,6 +309,7 @@ public class TasksControllerTests : IClassFixture<WebApplicationFactory<Program>
         var context = scope.ServiceProvider.GetRequiredService<TodoDbContext>();
         var task = new TodoTask
         {
+            UserId = 1,
             Title = "Task",
             Status = TaskStatus.Todo,
             Priority = TaskPriority.Medium,
@@ -278,6 +338,7 @@ public class TasksControllerTests : IClassFixture<WebApplicationFactory<Program>
         var context = scope.ServiceProvider.GetRequiredService<TodoDbContext>();
         var task = new TodoTask
         {
+            UserId = 1,
             Title = "Task to Delete",
             Status = TaskStatus.Todo,
             Priority = TaskPriority.Low,
@@ -407,6 +468,7 @@ public class TasksControllerTests : IClassFixture<WebApplicationFactory<Program>
         var context = scope.ServiceProvider.GetRequiredService<TodoDbContext>();
         var task = new TodoTask
         {
+            UserId = 1,
             Title = "Original",
             Status = TaskStatus.Todo,
             Priority = TaskPriority.Low,
@@ -438,6 +500,7 @@ public class TasksControllerTests : IClassFixture<WebApplicationFactory<Program>
         var context = scope.ServiceProvider.GetRequiredService<TodoDbContext>();
         var task = new TodoTask
         {
+            UserId = 1,
             Title = "Original",
             Status = TaskStatus.Todo,
             Priority = TaskPriority.Low,
@@ -511,6 +574,7 @@ public class TasksControllerTests : IClassFixture<WebApplicationFactory<Program>
         {
             context.Tasks.Add(new TodoTask
             {
+                UserId = 1,
                 Title = $"Paged Task {n}",
                 Status = TaskStatus.Todo,
                 Priority = TaskPriority.Low,
