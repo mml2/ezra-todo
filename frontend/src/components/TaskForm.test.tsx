@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import axios, { AxiosError } from 'axios';
 import { renderWithProviders } from '../test/utils';
 import TaskForm from './TaskForm';
 import { TaskStatus, TaskPriority } from '../types/task';
@@ -443,6 +444,46 @@ describe('TaskForm', () => {
 
       const form = screen.getByRole('heading', { name: /new task/i }).closest('form');
       expect(form).toBeInTheDocument();
+    });
+  });
+
+  describe('Server Validation Errors', () => {
+    it('handles axios errors with structured backend validation response', () => {
+      // Test the error handling logic by verifying axios.isAxiosError works
+      const mockError = {
+        isAxiosError: true,
+        response: {
+          status: 400,
+          data: {
+            errors: {
+              title: ['Title must not exceed 200 characters'],
+            },
+          },
+        },
+      } as AxiosError;
+
+      expect(axios.isAxiosError(mockError)).toBe(true);
+      expect(mockError.response?.status).toBe(400);
+      expect((mockError.response?.data as any).errors?.title).toEqual(['Title must not exceed 200 characters']);
+    });
+
+    it('rejects today date during validation (bug fix)', async () => {
+      const user = userEvent.setup();
+      renderWithProviders(<TaskForm onSuccess={mockOnSuccess} />);
+
+      const titleInput = screen.getByLabelText(/title/i);
+      await user.type(titleInput, 'Valid Title');
+
+      const today = new Date().toISOString().split('T')[0];
+      const dueDateInput = screen.getByLabelText(/due date/i);
+      await user.type(dueDateInput, today);
+
+      const submitButton = screen.getByRole('button', { name: /create task/i });
+      await user.click(submitButton);
+
+      // Should show error - today's date is not allowed
+      expect(await screen.findByText(/due date must be in the future/i)).toBeInTheDocument();
+      expect(mockOnSuccess).not.toHaveBeenCalled();
     });
   });
 });

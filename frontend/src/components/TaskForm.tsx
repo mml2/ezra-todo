@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import axios from 'axios';
 import { useCreateTask, useUpdateTask } from '../hooks/useTasks';
 import { Task, TaskPriority, TaskStatus } from '../types/task';
 
@@ -37,9 +38,8 @@ export default function TaskForm({ task, onSuccess, onCancel }: TaskFormProps) {
 
     if (formData.dueDate) {
       const dueDate = new Date(formData.dueDate);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      if (dueDate < today) {
+      const now = new Date();
+      if (dueDate <= now) {
         newErrors.dueDate = 'Due date must be in the future';
       }
     }
@@ -76,6 +76,26 @@ export default function TaskForm({ task, onSuccess, onCancel }: TaskFormProps) {
       onSuccess();
     } catch (error) {
       console.error('Error saving task:', error);
+
+      if (axios.isAxiosError(error) && error.response?.status === 400) {
+        const data = error.response.data as Record<string, unknown>;
+        if (data && typeof data === 'object' && 'errors' in data) {
+          const backendErrors = data.errors as Record<string, string[]> | undefined;
+          if (backendErrors && typeof backendErrors === 'object') {
+            const newErrors: Record<string, string> = {};
+            for (const [field, messages] of Object.entries(backendErrors)) {
+              if (Array.isArray(messages) && messages.length > 0) {
+                newErrors[field] = messages[0];
+              }
+            }
+            if (Object.keys(newErrors).length > 0) {
+              setErrors(newErrors);
+              return;
+            }
+          }
+        }
+      }
+
       setErrors({ submit: 'Failed to save task. Please try again.' });
     }
   };
