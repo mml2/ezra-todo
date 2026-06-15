@@ -1,11 +1,36 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import axios, { AxiosError } from 'axios';
+import { AxiosError } from 'axios';
 import { renderWithProviders } from '../test/utils';
 import TaskForm from './TaskForm';
+import { taskApi } from '../services/api';
 import { TaskStatus, TaskPriority } from '../types/task';
 import type { Task } from '../types/task';
+
+vi.mock('../services/api', () => ({
+  taskApi: {
+    getAll: vi.fn(),
+    getPaged: vi.fn(),
+    getById: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    updateStatus: vi.fn(),
+    delete: vi.fn(),
+  },
+}));
+
+function makeAxiosError(status: number, data: unknown): AxiosError {
+  const error = new AxiosError('Request failed');
+  error.response = {
+    status,
+    data,
+    statusText: '',
+    headers: {},
+    config: {} as never,
+  };
+  return error;
+}
 
 const mockTask: Task = {
   id: 1,
@@ -24,6 +49,12 @@ describe('TaskForm', () => {
   beforeEach(() => {
     mockOnSuccess.mockClear();
     mockOnCancel.mockClear();
+    vi.mocked(taskApi.create).mockReset();
+    vi.mocked(taskApi.update).mockReset();
+    // Default: mutation stays pending so loading-state tests observe the
+    // submitting UI. Error/success tests override per-test.
+    vi.mocked(taskApi.create).mockReturnValue(new Promise(() => {}));
+    vi.mocked(taskApi.update).mockReturnValue(new Promise(() => {}));
   });
 
   describe('Create Mode (no task prop)', () => {
@@ -448,23 +479,55 @@ describe('TaskForm', () => {
   });
 
   describe('Server Validation Errors', () => {
-    it('handles axios errors with structured backend validation response', () => {
-      // Test the error handling logic by verifying axios.isAxiosError works
-      const mockError = {
-        isAxiosError: true,
-        response: {
-          status: 400,
-          data: {
-            errors: {
-              title: ['Title must not exceed 200 characters'],
-            },
-          },
-        },
-      } as AxiosError;
+    it('surfaces backend 400 field errors inline below the relevant input', async () => {
+      const user = userEvent.setup();
+      vi.mocked(taskApi.create).mockRejectedValue(
+        makeAxiosError(400, {
+          errors: { title: ['Title must not exceed 200 characters'] },
+        })
+      );
 
-      expect(axios.isAxiosError(mockError)).toBe(true);
-      expect(mockError.response?.status).toBe(400);
-      expect((mockError.response?.data as any).errors?.title).toEqual(['Title must not exceed 200 characters']);
+      renderWithProviders(<TaskForm onSuccess={mockOnSuccess} />);
+
+      await user.type(screen.getByLabelText(/title/i), 'Valid Title');
+      await user.click(screen.getByRole('button', { name: /create task/i }));
+
+      expect(
+        await screen.findByText(/Title must not exceed 200 characters/)
+      ).toBeInTheDocument();
+      expect(mockOnSuccess).not.toHaveBeenCalled();
+    });
+
+    it('falls back to the generic message when a 400 has no structured errors', async () => {
+      const user = userEvent.setup();
+      vi.mocked(taskApi.create).mockRejectedValue(
+        makeAxiosError(400, { detail: 'Bad request' })
+      );
+
+      renderWithProviders(<TaskForm onSuccess={mockOnSuccess} />);
+
+      await user.type(screen.getByLabelText(/title/i), 'Valid Title');
+      await user.click(screen.getByRole('button', { name: /create task/i }));
+
+      expect(
+        await screen.findByText(/failed to save task/i)
+      ).toBeInTheDocument();
+      expect(mockOnSuccess).not.toHaveBeenCalled();
+    });
+
+    it('falls back to the generic message for a non-axios error', async () => {
+      const user = userEvent.setup();
+      vi.mocked(taskApi.create).mockRejectedValue(new Error('network down'));
+
+      renderWithProviders(<TaskForm onSuccess={mockOnSuccess} />);
+
+      await user.type(screen.getByLabelText(/title/i), 'Valid Title');
+      await user.click(screen.getByRole('button', { name: /create task/i }));
+
+      expect(
+        await screen.findByText(/failed to save task/i)
+      ).toBeInTheDocument();
+      expect(mockOnSuccess).not.toHaveBeenCalled();
     });
 
     it('rejects today date during validation (bug fix)', async () => {
