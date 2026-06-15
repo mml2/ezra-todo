@@ -134,6 +134,115 @@ ezra-todo/
 
 ---
 
+## Architecture
+
+### System architecture
+
+The application is a React SPA talking to a layered .NET API over HTTP. Authentication is enforced by JWT bearer middleware, and every task query is scoped to the user identity carried in the token.
+
+```mermaid
+flowchart TB
+    subgraph Browser["React SPA (Vite + TS)"]
+        Login["Login page<br/>(Zod-validated)"]
+        Protected["ProtectedRoute<br/>(redirect to /login if no token)"]
+        TaskUI["TaskList / TaskForm / TaskItem"]
+        AuthCtx["AuthContext<br/>token in localStorage"]
+        Axios["axios client<br/>request: attach Bearer<br/>response: 401 → clear + /login"]
+        Login --> AuthCtx
+        Protected --> TaskUI
+        TaskUI --> Axios
+        AuthCtx --> Axios
+    end
+
+    subgraph API[".NET 10 API"]
+        direction TB
+        Cors["CORS"]
+        AuthN["Authentication<br/>(JWT bearer: validate issuer,<br/>audience, lifetime, signature;<br/>ClockSkew = 0)"]
+        AuthZ["Authorization<br/>([Authorize])"]
+        Rate["Rate limiter<br/>(100 req/min)"]
+
+        subgraph Controllers["Controllers (thin)"]
+            AuthCtrl["AuthController<br/>[AllowAnonymous]<br/>POST /api/auth/login"]
+            TasksCtrl["TasksController<br/>[Authorize]<br/>userId = NameIdentifier claim"]
+        end
+
+        subgraph Services["Services (Result&lt;T&gt;)"]
+            AuthSvc["AuthService<br/>verify via PasswordHasher&lt;User&gt;<br/>(generic 401, no enumeration)"]
+            TokenSvc["TokenService<br/>sign HMAC-SHA256, 60-min expiry"]
+            TaskSvc["TaskService<br/>foreign/missing task → 404"]
+        end
+
+        subgraph DataLayer["Data (EF Core)"]
+            UserRepo["UserRepository<br/>GetByUsernameAsync"]
+            TaskRepo["TaskRepository<br/>.Where(t => t.UserId == userId)"]
+        end
+
+        Cors --> AuthN --> AuthZ --> Rate --> Controllers
+        AuthCtrl --> AuthSvc --> UserRepo
+        AuthCtrl --> TokenSvc
+        AuthSvc --> TokenSvc
+        TasksCtrl --> TaskSvc --> TaskRepo
+    end
+
+    DB[("SQLite<br/>Users (hashed pw)<br/>Tasks (UserId FK)")]
+
+    Axios -- "POST /api/auth/login" --> AuthCtrl
+    Axios -- "Authorization: Bearer &lt;jwt&gt;" --> TasksCtrl
+    UserRepo --> DB
+    TaskRepo --> DB
+
+    classDef sec fill:#fde68a,stroke:#b45309,color:#1a1a1a;
+    class AuthN,AuthZ,TokenSvc,AuthSvc sec;
+```
+
+> Highlighted nodes are the security-critical components added by the JWT auth feature.
+
+### Authentication & request flow
+
+The sequence below traces the full lifecycle: login, an authorized request, and the three rejection paths (no/invalid token, expired token, another user's task).
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant SPA as React SPA
+    participant MW as JWT Middleware
+    participant Ctrl as TasksController
+    participant Svc as TaskService
+    participant DB as SQLite
+
+    Note over User,DB: 1. Login
+    User->>SPA: enter username + password
+    SPA->>Ctrl: POST /api/auth/login (AllowAnonymous)
+    Ctrl->>DB: look up user by username
+    alt valid credentials
+        Ctrl-->>SPA: 200 { token, expiresAt, username }
+        SPA->>SPA: store token in localStorage
+    else wrong password OR unknown user
+        Ctrl-->>SPA: 401 "Invalid username or password" (identical, no enumeration)
+        SPA->>User: show generic error
+    end
+
+    Note over User,DB: 2. Authorized task request
+    SPA->>MW: GET /api/tasks  (Authorization: Bearer <jwt>)
+    alt missing / invalid / expired token
+        MW-->>SPA: 401 Unauthorized
+        SPA->>SPA: clear token, redirect to /login
+    else valid token (within 60 min, ClockSkew = 0)
+        MW->>Ctrl: forward + userId claim (NameIdentifier)
+        Ctrl->>Svc: GetTaskById(id, userId)
+        Svc->>DB: SELECT WHERE Id = id AND UserId = userId
+        alt task owned by caller
+            DB-->>Svc: task
+            Svc-->>SPA: 200 task
+        else task missing OR owned by another user
+            DB-->>Svc: null
+            Svc-->>SPA: 404 Not Found (existence not leaked)
+        end
+    end
+```
+
+---
+
 ## Authentication
 
 ### Login
