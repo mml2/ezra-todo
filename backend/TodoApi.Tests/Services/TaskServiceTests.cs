@@ -243,6 +243,92 @@ public class TaskServiceTests
     }
 
     [Fact]
+    public async Task UpdateTaskAsync_WithWhitespaceTitle_ReturnsBadRequest()
+    {
+        // Arrange
+        var dto = new UpdateTaskDto(
+            Title: "   ",
+            Description: null,
+            Status: null,
+            Priority: null,
+            DueDate: null
+        );
+
+        // Act
+        var result = await _service.UpdateTaskAsync(1, dto);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.Equal("Title cannot be empty", result.Error);
+        _mockRepository.Verify(r => r.GetByIdAsync(It.IsAny<int>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task UpdateTaskAsync_WithTitleTooLong_ReturnsBadRequest()
+    {
+        // Arrange
+        var dto = new UpdateTaskDto(
+            Title: new string('a', 201),
+            Description: null,
+            Status: null,
+            Priority: null,
+            DueDate: null
+        );
+
+        // Act
+        var result = await _service.UpdateTaskAsync(1, dto);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.Equal("Title must not exceed 200 characters", result.Error);
+        _mockRepository.Verify(r => r.GetByIdAsync(It.IsAny<int>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task UpdateTaskAsync_WithDescriptionTooLong_ReturnsBadRequest()
+    {
+        // Arrange
+        var dto = new UpdateTaskDto(
+            Title: null,
+            Description: new string('x', 1001),
+            Status: null,
+            Priority: null,
+            DueDate: null
+        );
+
+        // Act
+        var result = await _service.UpdateTaskAsync(1, dto);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.Equal("Description must not exceed 1000 characters", result.Error);
+        _mockRepository.Verify(r => r.GetByIdAsync(It.IsAny<int>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CreateTaskAsync_WithDescriptionTooLong_ReturnsBadRequest()
+    {
+        // Arrange
+        var dto = new CreateTaskDto(
+            Title: "Valid Title",
+            Description: new string('x', 1001),
+            Priority: TaskPriority.Medium,
+            DueDate: null
+        );
+
+        // Act
+        var result = await _service.CreateTaskAsync(dto);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.Equal("Description must not exceed 1000 characters", result.Error);
+    }
+
+    [Fact]
     public async Task UpdateTaskStatusAsync_WithValidStatus_UpdatesStatus()
     {
         // Arrange

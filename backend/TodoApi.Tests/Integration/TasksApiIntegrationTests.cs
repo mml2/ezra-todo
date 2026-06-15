@@ -207,4 +207,94 @@ public class TasksApiIntegrationTests : IClassFixture<WebApplicationFactory<Prog
         var followUp = await _client.GetAsync($"/api/tasks/{task.Id}");
         Assert.Equal(HttpStatusCode.NotFound, followUp.StatusCode);
     }
+
+    [Fact]
+    public async Task UpdateTaskStatus_ReturnsOk_AndStatusIsUpdated()
+    {
+        // Arrange
+        var task = await SeedTaskAsync("Status Task");
+        var dto = new UpdateTaskStatusDto(TaskStatus.InProgress);
+
+        // Act
+        var response = await _client.PatchAsJsonAsync($"/api/tasks/{task.Id}/status", dto);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var updated = await response.Content.ReadFromJsonAsync<TaskResponseDto>(JsonOptions);
+        Assert.NotNull(updated);
+        Assert.Equal(TaskStatus.InProgress, updated.Status);
+    }
+
+    [Fact]
+    public async Task UpdateTaskStatus_ReturnsNotFound_WhenTaskDoesNotExist()
+    {
+        // Arrange
+        var dto = new UpdateTaskStatusDto(TaskStatus.Done);
+
+        // Act
+        var response = await _client.PatchAsJsonAsync("/api/tasks/424242/status", dto);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetTasks_ReturnsPaginatedResult_WhenPageAndPageSizeProvided()
+    {
+        // Arrange — seed 5 tasks
+        using var scope = _factory.Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<TodoDbContext>();
+        for (var n = 1; n <= 5; n++)
+        {
+            context.Tasks.Add(new TodoTask
+            {
+                Title = $"Integration Paged {n}",
+                Status = TaskStatus.Todo,
+                Priority = TaskPriority.Low,
+                CreatedAt = DateTime.UtcNow
+            });
+        }
+        await context.SaveChangesAsync();
+
+        // Act
+        var response = await _client.GetAsync("/api/tasks?page=1&pageSize=3");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.Contains("\"items\"", body);
+        Assert.Contains("\"totalCount\"", body);
+        Assert.Contains("\"totalPages\"", body);
+    }
+
+    [Fact]
+    public async Task ErrorEndpoint_ReturnsProblemDetails()
+    {
+        // The /error endpoint is mapped in Program.cs to handle exception handler redirects.
+        // When hit directly (no prior exception) the response status defaults to 200;
+        // the important thing is it returns a ProblemDetails JSON body.
+        var response = await _client.GetAsync("/error");
+        var body = await response.Content.ReadAsStringAsync();
+
+        // ProblemDetails always contains a "status" field
+        Assert.Contains("status", body);
+    }
+
+    [Fact]
+    public async Task CreateTask_ReturnsBadRequest_WhenTitleExceedsMaxLength()
+    {
+        // Arrange
+        var dto = new CreateTaskDto(
+            Title: new string('a', 201),
+            Description: null,
+            Priority: TaskPriority.Medium,
+            DueDate: null
+        );
+
+        // Act
+        var response = await _client.PostAsJsonAsync("/api/tasks", dto);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
 }
