@@ -81,10 +81,10 @@ temp/
 *.tmp
 unpacked/
 
-# Claude Code personal settings
-.claude/settings.local.json
-
-# Beads / Dolt files (added by bd init)
+# AI tooling — local workflow dirs, not part of the project
+.beads/
+.agents/
+.claude/
+.codex/
 .dolt/
 .beads-credential-key
-.beads/proxieddb/
