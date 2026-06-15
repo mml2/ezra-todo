@@ -1,0 +1,623 @@
+openapi: 3.0.3
+info:
+  title: Ezra Todo API
+  description: |
+    Production-ready task management REST API built with .NET 10 / ASP.NET Core.
+
+    **Key characteristics:**
+    - Full CRUD for tasks with soft delete (deleted tasks are hidden, not destroyed)
+    - Paginated and unpaginated task listing via the same endpoint
+    - Partial status updates via PATCH without touching other fields
+    - FluentValidation at controller boundary (single validation point)
+    - Defence-in-depth service-layer guards on critical fields
+    - RFC 7807 Problem Details for all error responses
+    - Rate limited: 100 requests per minute per client (fixed window)
+    - Enums serialised as strings (`Todo`, `InProgress`, `Done` / `Low`, `Medium`, `High`)
+  version: 1.0.0
+  contact:
+    name: Manasi Lonkar
+  license:
+    name: ISC
+    url: https://opensource.org/licenses/ISC
+
+servers:
+  - url: http://localhost:5000/api
+    description: Local development server
+
+security: []
+
+tags:
+  - name: Tasks
+    description: Task management operations
+
+paths:
+  /tasks:
+    get:
+      tags: [Tasks]
+      summary: List tasks
+      description: |
+        Returns tasks. Behaviour depends on query parameters:
+
+        - **Both `page` and `pageSize` provided** → returns a `PagedResult` object
+          containing `items`, `totalCount`, `page`, `pageSize`, and `totalPages`.
+        - **One or neither provided** → returns a flat `TaskResponseDto[]` array
+          ordered by `createdAt` descending (backward-compatible behaviour).
+
+        Soft-deleted tasks are never included in either response.
+      operationId: getTasks
+      parameters:
+        - name: page
+          in: query
+          description: |
+            1-based page number. Must be provided together with `pageSize`
+            to activate pagination. Ignored when `pageSize` is absent.
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            example: 1
+        - name: pageSize
+          in: query
+          description: |
+            Items per page. Must be 1–100. Must be provided together with `page`
+            to activate pagination. Ignored when `page` is absent.
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            example: 20
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/TaskResponseDtoArray"
+                  - $ref: "#/components/schemas/PagedResult"
+              examples:
+                unpaginated:
+                  summary: Full list (no pagination params)
+                  value:
+                    - id: 1
+                      title: Write unit tests
+                      description: Cover all controller actions
+                      status: Todo
+                      priority: High
+                      createdAt: "2026-06-15T10:00:00Z"
+                      updatedAt: null
+                      dueDate: "2026-12-31T00:00:00Z"
+                    - id: 2
+                      title: Deploy to staging
+                      description: null
+                      status: InProgress
+                      priority: Medium
+                      createdAt: "2026-06-14T08:30:00Z"
+                      updatedAt: "2026-06-14T12:00:00Z"
+                      dueDate: null
+                paginated:
+                  summary: Paginated result (?page=1&pageSize=20)
+                  value:
+                    items:
+                      - id: 1
+                        title: Write unit tests
+                        description: null
+                        status: Todo
+                        priority: Medium
+                        createdAt: "2026-06-15T10:00:00Z"
+                        updatedAt: null
+                        dueDate: null
+                    totalCount: 42
+                    page: 1
+                    pageSize: 20
+                    totalPages: 3
+                    hasNextPage: true
+                    hasPreviousPage: false
+        "400":
+          description: Invalid pagination parameters (page < 1 or pageSize outside 1–100)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: PageSize must be between 1 and 100
+
+    post:
+      tags: [Tasks]
+      summary: Create a task
+      description: |
+        Creates a new task. The new task always starts with `status: Todo`.
+        `createdAt` is set by the server (UTC).
+      operationId: createTask
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTaskDto"
+            example:
+              title: Implement search feature
+              description: Full-text search across task titles and descriptions
+              priority: High
+              dueDate: "2026-12-31T00:00:00Z"
+      responses:
+        "201":
+          description: Task created
+          headers:
+            Location:
+              description: URL of the newly created resource (`/api/tasks/{id}`)
+              schema:
+                type: string
+                format: uri
+                example: "http://localhost:5000/api/tasks/42"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskResponseDto"
+              example:
+                id: 42
+                title: Implement search feature
+                description: Full-text search across task titles and descriptions
+                status: Todo
+                priority: High
+                createdAt: "2026-06-15T10:00:00Z"
+                updatedAt: null
+                dueDate: "2026-12-31T00:00:00Z"
+        "400":
+          description: |
+            Validation error. Returns a map of field names to lists of error messages.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationErrors"
+              examples:
+                missingTitle:
+                  summary: Title missing
+                  value:
+                    errors:
+                      title:
+                        - Title is required
+                pastDueDate:
+                  summary: Due date in the past
+                  value:
+                    errors:
+                      dueDate:
+                        - Due date must be in the future
+                invalidPriority:
+                  summary: Invalid priority enum
+                  value:
+                    errors:
+                      priority:
+                        - Invalid priority value
+
+  /tasks/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Task identifier (positive integer)
+        schema:
+          type: integer
+          format: int32
+          minimum: 1
+          example: 42
+
+    get:
+      tags: [Tasks]
+      summary: Get a task by ID
+      operationId: getTaskById
+      responses:
+        "200":
+          description: Task found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskResponseDto"
+              example:
+                id: 42
+                title: Write unit tests
+                description: Cover all controller actions
+                status: InProgress
+                priority: High
+                createdAt: "2026-06-15T10:00:00Z"
+                updatedAt: "2026-06-15T14:30:00Z"
+                dueDate: "2026-12-31T00:00:00Z"
+        "404":
+          description: Task not found (or has been soft-deleted)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: Task not found
+
+    put:
+      tags: [Tasks]
+      summary: Update a task
+      description: |
+        Updates a task. All request body fields are optional.
+
+        **Null-field semantics:** a `null` value preserves the existing field value
+        on the task. This allows callers to update a single field without knowing
+        (or sending) the current values of the others.
+
+        **Constraints:**
+        - `title` — if provided and non-null, must be 1–200 characters (empty string
+          or whitespace is rejected).
+        - `description` — if provided and non-null, max 1000 characters.
+        - `status` / `priority` — must be a valid enum string when provided.
+      operationId: updateTask
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTaskDto"
+            examples:
+              updateTitle:
+                summary: Update title and status only
+                value:
+                  title: Updated title
+                  status: InProgress
+                  description: null
+                  priority: null
+                  dueDate: null
+              preserveAll:
+                summary: Preserve everything (no-op)
+                value:
+                  title: null
+                  description: null
+                  status: null
+                  priority: null
+                  dueDate: null
+      responses:
+        "200":
+          description: Task updated — returns the full updated task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskResponseDto"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationErrors"
+              examples:
+                emptyTitle:
+                  summary: Empty title supplied
+                  value:
+                    errors:
+                      title:
+                        - Title cannot be empty
+                titleTooLong:
+                  summary: Title exceeds 200 characters
+                  value:
+                    errors:
+                      title:
+                        - Title must not exceed 200 characters
+        "404":
+          description: Task not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: Task not found
+
+    delete:
+      tags: [Tasks]
+      summary: Delete a task
+      description: |
+        Soft-deletes the task. The database record is retained with `IsDeleted = true`
+        and is excluded from all subsequent queries automatically via an EF Core
+        global query filter. There is no hard-delete endpoint.
+      operationId: deleteTask
+      responses:
+        "204":
+          description: Task deleted — no response body
+        "404":
+          description: Task not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: Task not found
+
+  /tasks/{id}/status:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Task identifier (positive integer)
+        schema:
+          type: integer
+          format: int32
+          minimum: 1
+          example: 42
+
+    patch:
+      tags: [Tasks]
+      summary: Update task status
+      description: |
+        Updates only the `status` field of a task. All other fields are preserved.
+        Use this endpoint instead of `PUT /tasks/{id}` when you only need to
+        advance a task through its lifecycle (`Todo` → `InProgress` → `Done`).
+      operationId: updateTaskStatus
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTaskStatusDto"
+            example:
+              status: Done
+      responses:
+        "200":
+          description: Status updated — returns the full updated task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskResponseDto"
+              example:
+                id: 42
+                title: Write unit tests
+                description: Cover all controller actions
+                status: Done
+                priority: High
+                createdAt: "2026-06-15T10:00:00Z"
+                updatedAt: "2026-06-15T18:00:00Z"
+                dueDate: "2026-12-31T00:00:00Z"
+        "400":
+          description: Invalid status value
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationErrors"
+              example:
+                errors:
+                  status:
+                    - Invalid status value
+        "404":
+          description: Task not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: Task not found
+
+components:
+  schemas:
+
+    TaskStatus:
+      type: string
+      description: Lifecycle status of a task
+      enum:
+        - Todo
+        - InProgress
+        - Done
+      example: Todo
+
+    TaskPriority:
+      type: string
+      description: Priority level of a task
+      enum:
+        - Low
+        - Medium
+        - High
+      example: Medium
+
+    TaskResponseDto:
+      type: object
+      description: Full task representation returned by all read and write operations
+      required:
+        - id
+        - title
+        - status
+        - priority
+        - createdAt
+      properties:
+        id:
+          type: integer
+          format: int32
+          description: Unique identifier assigned by the server
+          example: 42
+        title:
+          type: string
+          maxLength: 200
+          description: Task title
+          example: Write integration tests
+        description:
+          type: string
+          nullable: true
+          maxLength: 1000
+          description: Optional free-text description; null when not set
+          example: Cover all controller actions with WebApplicationFactory
+        status:
+          $ref: "#/components/schemas/TaskStatus"
+        priority:
+          $ref: "#/components/schemas/TaskPriority"
+        createdAt:
+          type: string
+          format: date-time
+          description: UTC timestamp when the task was created (server-assigned)
+          example: "2026-06-15T10:00:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: UTC timestamp of the last update; null if the task has never been updated
+          example: "2026-06-15T14:30:00Z"
+        dueDate:
+          type: string
+          format: date-time
+          nullable: true
+          description: Optional due date (UTC); null when not set
+          example: "2026-12-31T00:00:00Z"
+
+    TaskResponseDtoArray:
+      type: array
+      description: Flat array returned by GET /tasks when pagination is not activated
+      items:
+        $ref: "#/components/schemas/TaskResponseDto"
+
+    CreateTaskDto:
+      type: object
+      description: Request body for creating a new task
+      required:
+        - title
+        - priority
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Task title — required, must be non-empty
+          example: Implement search feature
+        description:
+          type: string
+          nullable: true
+          maxLength: 1000
+          description: Optional task description
+          example: Full-text search across task titles and descriptions
+        priority:
+          $ref: "#/components/schemas/TaskPriority"
+        dueDate:
+          type: string
+          format: date-time
+          nullable: true
+          description: |
+            Optional due date (UTC). When provided, must be a future datetime.
+            Validation message: "Due date must be in the future".
+          example: "2026-12-31T00:00:00Z"
+
+    UpdateTaskDto:
+      type: object
+      description: |
+        Request body for updating a task. All fields are optional.
+        A `null` field preserves the existing value on the task;
+        omitting a field is equivalent to sending `null`.
+      properties:
+        title:
+          type: string
+          nullable: true
+          minLength: 1
+          maxLength: 200
+          description: |
+            New title. `null` preserves the existing value.
+            An empty string or whitespace string is rejected (400).
+          example: Updated title
+        description:
+          type: string
+          nullable: true
+          maxLength: 1000
+          description: New description. `null` preserves the existing value.
+          example: Updated description
+        status:
+          type: string
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/TaskStatus"
+          description: New status. `null` preserves the existing value.
+        priority:
+          type: string
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/TaskPriority"
+          description: New priority. `null` preserves the existing value.
+        dueDate:
+          type: string
+          format: date-time
+          nullable: true
+          description: New due date (UTC). `null` preserves the existing value.
+          example: "2026-12-31T00:00:00Z"
+
+    UpdateTaskStatusDto:
+      type: object
+      description: Request body for the PATCH status endpoint
+      required:
+        - status
+      properties:
+        status:
+          $ref: "#/components/schemas/TaskStatus"
+
+    PagedResult:
+      type: object
+      description: Paginated response returned by GET /tasks when both `page` and `pageSize` are supplied
+      required:
+        - items
+        - totalCount
+        - page
+        - pageSize
+        - totalPages
+        - hasNextPage
+        - hasPreviousPage
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/TaskResponseDto"
+          description: Tasks on the current page
+        totalCount:
+          type: integer
+          format: int32
+          description: Total number of non-deleted tasks across all pages
+          example: 42
+        page:
+          type: integer
+          format: int32
+          description: Current page number (1-based)
+          example: 1
+        pageSize:
+          type: integer
+          format: int32
+          description: Number of items per page as requested
+          example: 20
+        totalPages:
+          type: integer
+          format: int32
+          description: "`ceil(totalCount / pageSize)` — computed by the server"
+          example: 3
+        hasNextPage:
+          type: boolean
+          description: "`true` when `page < totalPages`"
+          example: true
+        hasPreviousPage:
+          type: boolean
+          description: "`true` when `page > 1`"
+          example: false
+
+    ErrorResponse:
+      type: object
+      description: |
+        Simple error wrapper returned by the service/controller layer when a
+        business rule is violated (e.g. task not found, invalid page parameters).
+        Not the same shape as `ValidationErrors` — this has a single `error` string.
+      properties:
+        error:
+          type: string
+          description: Human-readable error message
+          example: Task not found
+
+    ValidationErrors:
+      type: object
+      description: |
+        Returned when FluentValidation rejects the request body (HTTP 400).
+        Contains a map of field names to lists of error messages, matching the
+        shape produced by `FluentValidation.Results.ValidationResult.ToDictionary()`.
+      properties:
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+          description: Map of field name → list of validation error messages
+          example:
+            title:
+              - Title is required
+            dueDate:
+              - Due date must be in the future
