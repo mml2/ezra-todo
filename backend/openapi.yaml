@@ -1,4 +1,4 @@
-openapi: 3.0.3
+openapi: 3.1.0
 info:
   title: Ezra Todo API
   description: |
@@ -431,8 +431,7 @@ components:
           description: Task title
           example: Write integration tests
         description:
-          type: string
-          nullable: true
+          type: [string, "null"]
           maxLength: 1000
           description: Optional free-text description; null when not set
           example: Cover all controller actions with WebApplicationFactory
@@ -446,15 +445,13 @@ components:
           description: UTC timestamp when the task was created (server-assigned)
           example: "2026-06-15T10:00:00Z"
         updatedAt:
-          type: string
+          type: [string, "null"]
           format: date-time
-          nullable: true
           description: UTC timestamp of the last update; null if the task has never been updated
           example: "2026-06-15T14:30:00Z"
         dueDate:
-          type: string
+          type: [string, "null"]
           format: date-time
-          nullable: true
           description: Optional due date (UTC); null when not set
           example: "2026-12-31T00:00:00Z"
 
@@ -478,17 +475,15 @@ components:
           description: Task title — required, must be non-empty
           example: Implement search feature
         description:
-          type: string
-          nullable: true
+          type: [string, "null"]
           maxLength: 1000
           description: Optional task description
           example: Full-text search across task titles and descriptions
         priority:
           $ref: "#/components/schemas/TaskPriority"
         dueDate:
-          type: string
+          type: [string, "null"]
           format: date-time
-          nullable: true
           description: |
             Optional due date (UTC). When provided, must be a future datetime.
             Validation message: "Due date must be in the future".
@@ -502,8 +497,7 @@ components:
         omitting a field is equivalent to sending `null`.
       properties:
         title:
-          type: string
-          nullable: true
+          type: [string, "null"]
           minLength: 1
           maxLength: 200
           description: |
@@ -511,27 +505,23 @@ components:
             An empty string or whitespace string is rejected (400).
           example: Updated title
         description:
-          type: string
-          nullable: true
+          type: [string, "null"]
           maxLength: 1000
           description: New description. `null` preserves the existing value.
           example: Updated description
         status:
-          type: string
-          nullable: true
-          allOf:
+          oneOf:
             - $ref: "#/components/schemas/TaskStatus"
+            - type: "null"
           description: New status. `null` preserves the existing value.
         priority:
-          type: string
-          nullable: true
-          allOf:
+          oneOf:
             - $ref: "#/components/schemas/TaskPriority"
+            - type: "null"
           description: New priority. `null` preserves the existing value.
         dueDate:
-          type: string
+          type: [string, "null"]
           format: date-time
-          nullable: true
           description: New due date (UTC). `null` preserves the existing value.
           example: "2026-12-31T00:00:00Z"
 
