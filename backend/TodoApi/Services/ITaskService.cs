@@ -5,11 +5,11 @@ namespace TodoApi.Services;
 
 public interface ITaskService
 {
-    Task<Result<IEnumerable<TaskResponseDto>>> GetAllTasksAsync();
-    Task<Result<PagedResult<TaskResponseDto>>> GetTasksPagedAsync(int page, int pageSize);
-    Task<Result<TaskResponseDto>> GetTaskByIdAsync(int id);
-    Task<Result<TaskResponseDto>> CreateTaskAsync(CreateTaskDto dto);
-    Task<Result<TaskResponseDto>> UpdateTaskAsync(int id, UpdateTaskDto dto);
-    Task<Result<TaskResponseDto>> UpdateTaskStatusAsync(int id, UpdateTaskStatusDto dto);
-    Task<Result<object>> DeleteTaskAsync(int id);
+    Task<Result<IEnumerable<TaskResponseDto>>> GetAllTasksAsync(int userId);
+    Task<Result<PagedResult<TaskResponseDto>>> GetTasksPagedAsync(int userId, int page, int pageSize);
+    Task<Result<TaskResponseDto>> GetTaskByIdAsync(int id, int userId);
+    Task<Result<TaskResponseDto>> CreateTaskAsync(int userId, CreateTaskDto dto);
+    Task<Result<TaskResponseDto>> UpdateTaskAsync(int id, int userId, UpdateTaskDto dto);
+    Task<Result<TaskResponseDto>> UpdateTaskStatusAsync(int id, int userId, UpdateTaskStatusDto dto);
+    Task<Result<object>> DeleteTaskAsync(int id, int userId);
 }

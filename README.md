@@ -134,19 +134,80 @@ ezra-todo/
 
 ---
 
+## Authentication
+
+### Login
+
+The API uses JWT bearer tokens for authentication. All `/api/tasks` endpoints require a valid token obtained from the login endpoint.
+
+**Login endpoint:**
+```bash
+POST http://localhost:5000/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "alice",
+  "password": "Password123!"
+}
+```
+
+**Response (200):**
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "expiresAt": "2026-06-15T11:45:00Z",
+  "username": "alice"
+}
+```
+
+**Seeded demo users:**
+- Username: `alice` / Password: `Password123!`
+- Username: `bob` / Password: `Password123!`
+
+### Token Usage
+
+Include the token in the `Authorization` header for all task operations:
+```bash
+curl -H "Authorization: Bearer <token>" http://localhost:5000/api/tasks
+```
+
+Tokens expire after **60 minutes**. On expiry (401 response), the frontend redirects to `/login`.
+
+### Per-User Task Isolation
+
+Each user only sees and can access their own tasks. Attempting to access another user's task returns **404** (not 403), a deliberate security choice to prevent leaking task existence. This means:
+- `GET /api/tasks` returns only the authenticated user's tasks
+- `GET /api/tasks/{id}` returns 404 if the task belongs to another user
+- `PUT /api/tasks/{id}` returns 404 if the task belongs to another user
+- `DELETE /api/tasks/{id}` returns 404 if the task belongs to another user
+
+### Token Storage and Security Trade-offs
+
+**Current implementation:** Tokens are stored in browser `localStorage`, making them accessible to JavaScript via XSS attacks if the application is compromised.
+
+**Production migration path:**
+1. Move token storage to **httpOnly cookies** (not accessible to JavaScript) with `Secure` and `SameSite=Strict` flags
+2. Use a **BFF (Backend-For-Frontend) pattern**: the SPA communicates with a backend proxy that handles authentication and sets the httpOnly cookie, not the API directly
+3. Store the JWT signing key in a **secrets manager** (AWS Secrets Manager, Azure Key Vault, etc.), not in configuration files
+
+**Logout:** Currently client-side only — the frontend discards the token from localStorage. Production deployments should implement token revocation lists or short expiry + refresh token rotation.
+
+---
+
 ## API Reference
 
 Base URL: `http://localhost:5000/api`
 
-| Method | Endpoint | Description | Success |
-|--------|----------|-------------|---------|
-| GET | `/tasks` | List all tasks | 200 |
-| GET | `/tasks?page=1&pageSize=20` | Paginated list | 200 |
-| GET | `/tasks/{id}` | Get task by ID | 200 / 404 |
-| POST | `/tasks` | Create task | 201 / 400 |
-| PUT | `/tasks/{id}` | Update task (partial — null fields preserved) | 200 / 400 / 404 |
-| PATCH | `/tasks/{id}/status` | Update status only | 200 / 400 / 404 |
-| DELETE | `/tasks/{id}` | Soft delete | 204 / 404 |
+| Method | Endpoint | Description | Auth | Success |
+|--------|----------|-------------|------|---------|
+| POST | `/auth/login` | Authenticate user, get JWT token | No | 200 / 401 |
+| GET | `/tasks` | List all tasks (user's only) | Yes | 200 / 401 |
+| GET | `/tasks?page=1&pageSize=20` | Paginated list (user's only) | Yes | 200 / 401 |
+| GET | `/tasks/{id}` | Get task by ID | Yes | 200 / 401 / 404 |
+| POST | `/tasks` | Create task | Yes | 201 / 400 / 401 |
+| PUT | `/tasks/{id}` | Update task (partial — null fields preserved) | Yes | 200 / 400 / 401 / 404 |
+| PATCH | `/tasks/{id}/status` | Update status only | Yes | 200 / 400 / 401 / 404 |
+| DELETE | `/tasks/{id}` | Soft delete | Yes | 204 / 401 / 404 |
 
 ### Validation Rules
 
@@ -258,12 +319,13 @@ The database file (`todoapp.db`) is gitignored. Migrations are version-controlle
 
 ## Future Enhancements
 
-- JWT authentication (see [ADR-007](docs/ADR-007-authentication-strategy.md))
+- httpOnly cookie-based authentication + BFF pattern (see [ADR-007](docs/ADR-007-authentication-strategy.md) production migration path)
 - Real-time updates via SignalR
 - Task categories and tags
 - Docker containerisation
 - CI/CD pipeline (GitHub Actions)
 - PostgreSQL for production deployments
+- Token refresh endpoint and revocation list
 
 ---
 

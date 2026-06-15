@@ -1,5 +1,7 @@
 using FluentValidation;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 using TodoApi.DTOs;
 using TodoApi.Services;
 
@@ -7,6 +9,7 @@ namespace TodoApi.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class TasksController : ControllerBase
 {
     private readonly ITaskService _service;
@@ -26,13 +29,20 @@ public class TasksController : ControllerBase
         _updateTaskStatusValidator = updateTaskStatusValidator;
     }
 
+    private int GetUserId() =>
+        int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? throw new InvalidOperationException("Missing user id claim"));
+
+
     [HttpGet]
     public async Task<IActionResult> GetTasks([FromQuery] int? page, [FromQuery] int? pageSize)
     {
+        var userId = GetUserId();
+
         // If pagination parameters provided, use pagination
         if (page.HasValue && pageSize.HasValue)
         {
-            var pagedResult = await _service.GetTasksPagedAsync(page.Value, pageSize.Value);
+            var pagedResult = await _service.GetTasksPagedAsync(userId, page.Value, pageSize.Value);
 
             if (!pagedResult.Success)
                 return StatusCode(pagedResult.StatusCode, new { error = pagedResult.Error });
@@ -41,14 +51,15 @@ public class TasksController : ControllerBase
         }
 
         // Otherwise, return all tasks (backward compatible)
-        var result = await _service.GetAllTasksAsync();
+        var result = await _service.GetAllTasksAsync(userId);
         return Ok(result.Data);
     }
 
     [HttpGet("{id}")]
     public async Task<IActionResult> GetTask(int id)
     {
-        var result = await _service.GetTaskByIdAsync(id);
+        var userId = GetUserId();
+        var result = await _service.GetTaskByIdAsync(id, userId);
 
         if (!result.Success)
             return StatusCode(result.StatusCode, new { error = result.Error });
@@ -64,7 +75,8 @@ public class TasksController : ControllerBase
         if (!validationResult.IsValid)
             return ValidationError(validationResult);
 
-        var result = await _service.CreateTaskAsync(dto);
+        var userId = GetUserId();
+        var result = await _service.CreateTaskAsync(userId, dto);
 
         if (!result.Success)
             return StatusCode(result.StatusCode, new { error = result.Error });
@@ -82,7 +94,8 @@ public class TasksController : ControllerBase
         if (!validationResult.IsValid)
             return ValidationError(validationResult);
 
-        var result = await _service.UpdateTaskAsync(id, dto);
+        var userId = GetUserId();
+        var result = await _service.UpdateTaskAsync(id, userId, dto);
 
         if (!result.Success)
             return StatusCode(result.StatusCode, new { error = result.Error });
@@ -98,7 +111,8 @@ public class TasksController : ControllerBase
         if (!validationResult.IsValid)
             return ValidationError(validationResult);
 
-        var result = await _service.UpdateTaskStatusAsync(id, dto);
+        var userId = GetUserId();
+        var result = await _service.UpdateTaskStatusAsync(id, userId, dto);
 
         if (!result.Success)
             return StatusCode(result.StatusCode, new { error = result.Error });
@@ -109,7 +123,8 @@ public class TasksController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteTask(int id)
     {
-        var result = await _service.DeleteTaskAsync(id);
+        var userId = GetUserId();
+        var result = await _service.DeleteTaskAsync(id, userId);
 
         if (!result.Success)
             return StatusCode(result.StatusCode, new { error = result.Error });

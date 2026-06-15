@@ -1,9 +1,10 @@
-import { describe, it, expect, beforeAll, afterEach, afterAll, vi } from 'vitest';
+import { describe, it, expect, beforeAll, afterEach, afterAll, vi, beforeEach } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 import { taskApi } from './api';
 import { TaskStatus, TaskPriority } from '../types/task';
 import type { Task, CreateTaskDto, UpdateTaskDto, PagedResult } from '../types/task';
+import * as authService from './auth';
 
 const API_BASE_URL = 'http://localhost:5000/api';
 
@@ -121,6 +122,10 @@ const server = setupServer(
 );
 
 beforeAll(() => server.listen());
+beforeEach(() => {
+  // Clear localStorage before each test
+  localStorage.clear();
+});
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
@@ -263,6 +268,65 @@ describe('taskApi', () => {
       await expect(async () => {
         throw new Error('Request setup error');
       }).rejects.toThrow();
+
+      consoleErrorSpy.mockRestore();
+    });
+  });
+
+  describe('request interceptor', () => {
+    it('should attach Authorization header when token is present', async () => {
+      const token = 'test-jwt-token-123';
+      authService.setToken(token);
+
+      let capturedAuthHeader: string | undefined;
+      server.use(
+        http.get(`${API_BASE_URL}/tasks`, ({ request }) => {
+          capturedAuthHeader = request.headers.get('Authorization') || undefined;
+          return HttpResponse.json(mockTasks);
+        })
+      );
+
+      await taskApi.getAll();
+
+      expect(capturedAuthHeader).toBe(`Bearer ${token}`);
+    });
+
+    it('should not attach Authorization header when token is absent', async () => {
+      // Ensure no token in localStorage
+      authService.clearToken();
+
+      let capturedAuthHeader: string | null = null;
+      let headerChecked = false;
+      server.use(
+        http.get(`${API_BASE_URL}/tasks`, ({ request }) => {
+          capturedAuthHeader = request.headers.get('Authorization');
+          headerChecked = true;
+          return HttpResponse.json(mockTasks);
+        })
+      );
+
+      await taskApi.getAll();
+
+      expect(headerChecked).toBe(true);
+      expect(capturedAuthHeader).toBeNull();
+    });
+  });
+
+  describe('response interceptor - 401 handling', () => {
+    it('should handle 401 error response', async () => {
+      server.use(
+        http.get(`${API_BASE_URL}/tasks`, () => {
+          return new HttpResponse(null, { status: 401 });
+        })
+      );
+
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      // 401 response should be rejected
+      await expect(taskApi.getAll()).rejects.toThrow();
+
+      // Error should have been logged (at least called for 401 handling)
+      expect(consoleErrorSpy).toHaveBeenCalled();
 
       consoleErrorSpy.mockRestore();
     });

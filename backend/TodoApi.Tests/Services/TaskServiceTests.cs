@@ -13,6 +13,7 @@ public class TaskServiceTests
 {
     private readonly Mock<ITaskRepository> _mockRepository;
     private readonly TaskService _service;
+    private const int TestUserId = 1;
 
     public TaskServiceTests()
     {
@@ -26,13 +27,13 @@ public class TaskServiceTests
         // Arrange
         var tasks = new List<TodoTask>
         {
-            new() { Id = 1, Title = "Task 1", Status = TaskStatus.Todo, Priority = TaskPriority.Medium, CreatedAt = DateTime.UtcNow },
-            new() { Id = 2, Title = "Task 2", Status = TaskStatus.InProgress, Priority = TaskPriority.High, CreatedAt = DateTime.UtcNow }
+            new() { Id = 1, UserId = TestUserId, Title = "Task 1", Status = TaskStatus.Todo, Priority = TaskPriority.Medium, CreatedAt = DateTime.UtcNow },
+            new() { Id = 2, UserId = TestUserId, Title = "Task 2", Status = TaskStatus.InProgress, Priority = TaskPriority.High, CreatedAt = DateTime.UtcNow }
         };
-        _mockRepository.Setup(r => r.GetAllAsync()).ReturnsAsync(tasks);
+        _mockRepository.Setup(r => r.GetAllAsync(TestUserId)).ReturnsAsync(tasks);
 
         // Act
-        var result = await _service.GetAllTasksAsync();
+        var result = await _service.GetAllTasksAsync(TestUserId);
 
         // Assert
         Assert.True(result.Success);
@@ -46,10 +47,10 @@ public class TaskServiceTests
     public async Task GetAllTasksAsync_WithNoTasks_ReturnsEmptyList()
     {
         // Arrange
-        _mockRepository.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<TodoTask>());
+        _mockRepository.Setup(r => r.GetAllAsync(TestUserId)).ReturnsAsync(new List<TodoTask>());
 
         // Act
-        var result = await _service.GetAllTasksAsync();
+        var result = await _service.GetAllTasksAsync(TestUserId);
 
         // Assert
         Assert.True(result.Success);
@@ -63,16 +64,17 @@ public class TaskServiceTests
         var task = new TodoTask
         {
             Id = 1,
+            UserId = TestUserId,
             Title = "Test Task",
             Description = "Test Description",
             Status = TaskStatus.Todo,
             Priority = TaskPriority.High,
             CreatedAt = DateTime.UtcNow
         };
-        _mockRepository.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(task);
+        _mockRepository.Setup(r => r.GetByIdAsync(1, TestUserId)).ReturnsAsync(task);
 
         // Act
-        var result = await _service.GetTaskByIdAsync(1);
+        var result = await _service.GetTaskByIdAsync(1, TestUserId);
 
         // Assert
         Assert.True(result.Success);
@@ -86,12 +88,27 @@ public class TaskServiceTests
     public async Task GetTaskByIdAsync_WithInvalidId_ReturnsNotFound()
     {
         // Arrange
-        _mockRepository.Setup(r => r.GetByIdAsync(999)).ReturnsAsync((TodoTask?)null);
+        _mockRepository.Setup(r => r.GetByIdAsync(999, TestUserId)).ReturnsAsync((TodoTask?)null);
 
         // Act
-        var result = await _service.GetTaskByIdAsync(999);
+        var result = await _service.GetTaskByIdAsync(999, TestUserId);
 
         // Assert
+        Assert.False(result.Success);
+        Assert.Equal(404, result.StatusCode);
+        Assert.Equal("Task not found", result.Error);
+    }
+
+    [Fact]
+    public async Task GetTaskByIdAsync_WithTaskOwnedByDifferentUser_ReturnsNotFound()
+    {
+        // Arrange - simulate task owned by user 2, requested by user 1
+        _mockRepository.Setup(r => r.GetByIdAsync(1, TestUserId)).ReturnsAsync((TodoTask?)null);
+
+        // Act
+        var result = await _service.GetTaskByIdAsync(1, TestUserId);
+
+        // Assert - foreign task appears as "not found" (no existence leak)
         Assert.False(result.Success);
         Assert.Equal(404, result.StatusCode);
         Assert.Equal("Task not found", result.Error);
@@ -111,6 +128,7 @@ public class TaskServiceTests
         var createdTask = new TodoTask
         {
             Id = 1,
+            UserId = TestUserId,
             Title = dto.Title,
             Description = dto.Description,
             Status = TaskStatus.Todo,
@@ -122,7 +140,7 @@ public class TaskServiceTests
         _mockRepository.Setup(r => r.CreateAsync(It.IsAny<TodoTask>())).ReturnsAsync(createdTask);
 
         // Act
-        var result = await _service.CreateTaskAsync(dto);
+        var result = await _service.CreateTaskAsync(TestUserId, dto);
 
         // Assert
         Assert.True(result.Success);
@@ -130,6 +148,31 @@ public class TaskServiceTests
         Assert.NotNull(result.Data);
         Assert.Equal("New Task", result.Data.Title);
         Assert.Equal(TaskStatus.Todo, result.Data.Status);
+    }
+
+    [Fact]
+    public async Task CreateTaskAsync_WithValidDto_SetsUserIdFromParameter()
+    {
+        // Arrange
+        var dto = new CreateTaskDto(
+            Title: "New Task",
+            Description: null,
+            Priority: TaskPriority.Medium,
+            DueDate: null
+        );
+
+        TodoTask? capturedTask = null;
+        _mockRepository.Setup(r => r.CreateAsync(It.IsAny<TodoTask>()))
+            .Callback<TodoTask>(t => capturedTask = t)
+            .ReturnsAsync(new TodoTask { Id = 1, UserId = TestUserId, Title = dto.Title, Status = TaskStatus.Todo, Priority = dto.Priority, CreatedAt = DateTime.UtcNow });
+
+        // Act
+        var result = await _service.CreateTaskAsync(TestUserId, dto);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(capturedTask);
+        Assert.Equal(TestUserId, capturedTask.UserId);
     }
 
     [Fact]
@@ -144,7 +187,7 @@ public class TaskServiceTests
         );
 
         // Act
-        var result = await _service.CreateTaskAsync(dto);
+        var result = await _service.CreateTaskAsync(TestUserId, dto);
 
         // Assert
         Assert.False(result.Success);
@@ -164,7 +207,7 @@ public class TaskServiceTests
         );
 
         // Act
-        var result = await _service.CreateTaskAsync(dto);
+        var result = await _service.CreateTaskAsync(TestUserId, dto);
 
         // Assert
         Assert.False(result.Success);
@@ -179,6 +222,7 @@ public class TaskServiceTests
         var existingTask = new TodoTask
         {
             Id = 1,
+            UserId = TestUserId,
             Title = "Original Title",
             Status = TaskStatus.Todo,
             Priority = TaskPriority.Low,
@@ -196,6 +240,7 @@ public class TaskServiceTests
         var updatedTask = new TodoTask
         {
             Id = 1,
+            UserId = TestUserId,
             Title = "Updated Title",
             Description = "Updated Description",
             Status = TaskStatus.InProgress,
@@ -205,11 +250,11 @@ public class TaskServiceTests
         };
 
         // Service fetches the existing task before updating, so GetByIdAsync must be mocked
-        _mockRepository.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(existingTask);
-        _mockRepository.Setup(r => r.UpdateAsync(1, It.IsAny<TodoTask>())).ReturnsAsync(updatedTask);
+        _mockRepository.Setup(r => r.GetByIdAsync(1, TestUserId)).ReturnsAsync(existingTask);
+        _mockRepository.Setup(r => r.UpdateAsync(1, TestUserId, It.IsAny<TodoTask>())).ReturnsAsync(updatedTask);
 
         // Act
-        var result = await _service.UpdateTaskAsync(1, dto);
+        var result = await _service.UpdateTaskAsync(1, TestUserId, dto);
 
         // Assert
         Assert.True(result.Success);
@@ -231,10 +276,10 @@ public class TaskServiceTests
             DueDate: null
         );
 
-        _mockRepository.Setup(r => r.UpdateAsync(999, It.IsAny<TodoTask>())).ReturnsAsync((TodoTask?)null);
+        _mockRepository.Setup(r => r.GetByIdAsync(999, TestUserId)).ReturnsAsync((TodoTask?)null);
 
         // Act
-        var result = await _service.UpdateTaskAsync(999, dto);
+        var result = await _service.UpdateTaskAsync(999, TestUserId, dto);
 
         // Assert
         Assert.False(result.Success);
@@ -255,13 +300,13 @@ public class TaskServiceTests
         );
 
         // Act
-        var result = await _service.UpdateTaskAsync(1, dto);
+        var result = await _service.UpdateTaskAsync(1, TestUserId, dto);
 
         // Assert
         Assert.False(result.Success);
         Assert.Equal(400, result.StatusCode);
         Assert.Equal("Title cannot be empty", result.Error);
-        _mockRepository.Verify(r => r.GetByIdAsync(It.IsAny<int>()), Times.Never);
+        _mockRepository.Verify(r => r.GetByIdAsync(It.IsAny<int>(), It.IsAny<int>()), Times.Never);
     }
 
     [Fact]
@@ -277,13 +322,13 @@ public class TaskServiceTests
         );
 
         // Act
-        var result = await _service.UpdateTaskAsync(1, dto);
+        var result = await _service.UpdateTaskAsync(1, TestUserId, dto);
 
         // Assert
         Assert.False(result.Success);
         Assert.Equal(400, result.StatusCode);
         Assert.Equal("Title must not exceed 200 characters", result.Error);
-        _mockRepository.Verify(r => r.GetByIdAsync(It.IsAny<int>()), Times.Never);
+        _mockRepository.Verify(r => r.GetByIdAsync(It.IsAny<int>(), It.IsAny<int>()), Times.Never);
     }
 
     [Fact]
@@ -299,13 +344,13 @@ public class TaskServiceTests
         );
 
         // Act
-        var result = await _service.UpdateTaskAsync(1, dto);
+        var result = await _service.UpdateTaskAsync(1, TestUserId, dto);
 
         // Assert
         Assert.False(result.Success);
         Assert.Equal(400, result.StatusCode);
         Assert.Equal("Description must not exceed 1000 characters", result.Error);
-        _mockRepository.Verify(r => r.GetByIdAsync(It.IsAny<int>()), Times.Never);
+        _mockRepository.Verify(r => r.GetByIdAsync(It.IsAny<int>(), It.IsAny<int>()), Times.Never);
     }
 
     [Fact]
@@ -320,7 +365,7 @@ public class TaskServiceTests
         );
 
         // Act
-        var result = await _service.CreateTaskAsync(dto);
+        var result = await _service.CreateTaskAsync(TestUserId, dto);
 
         // Assert
         Assert.False(result.Success);
@@ -335,6 +380,7 @@ public class TaskServiceTests
         var existingTask = new TodoTask
         {
             Id = 1,
+            UserId = TestUserId,
             Title = "Task",
             Status = TaskStatus.Todo,
             Priority = TaskPriority.Medium,
@@ -344,6 +390,7 @@ public class TaskServiceTests
         var updatedTask = new TodoTask
         {
             Id = 1,
+            UserId = TestUserId,
             Title = "Task",
             Status = TaskStatus.Done,
             Priority = TaskPriority.Medium,
@@ -351,13 +398,13 @@ public class TaskServiceTests
             UpdatedAt = DateTime.UtcNow
         };
 
-        _mockRepository.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(existingTask);
-        _mockRepository.Setup(r => r.UpdateAsync(1, It.IsAny<TodoTask>())).ReturnsAsync(updatedTask);
+        _mockRepository.Setup(r => r.GetByIdAsync(1, TestUserId)).ReturnsAsync(existingTask);
+        _mockRepository.Setup(r => r.UpdateAsync(1, TestUserId, It.IsAny<TodoTask>())).ReturnsAsync(updatedTask);
 
         var dto = new UpdateTaskStatusDto(TaskStatus.Done);
 
         // Act
-        var result = await _service.UpdateTaskStatusAsync(1, dto);
+        var result = await _service.UpdateTaskStatusAsync(1, TestUserId, dto);
 
         // Assert
         Assert.True(result.Success);
@@ -370,11 +417,11 @@ public class TaskServiceTests
     public async Task UpdateTaskStatusAsync_WithInvalidId_ReturnsNotFound()
     {
         // Arrange
-        _mockRepository.Setup(r => r.GetByIdAsync(999)).ReturnsAsync((TodoTask?)null);
+        _mockRepository.Setup(r => r.GetByIdAsync(999, TestUserId)).ReturnsAsync((TodoTask?)null);
         var dto = new UpdateTaskStatusDto(TaskStatus.Done);
 
         // Act
-        var result = await _service.UpdateTaskStatusAsync(999, dto);
+        var result = await _service.UpdateTaskStatusAsync(999, TestUserId, dto);
 
         // Assert
         Assert.False(result.Success);
@@ -385,10 +432,10 @@ public class TaskServiceTests
     public async Task DeleteTaskAsync_WithValidId_DeletesTask()
     {
         // Arrange
-        _mockRepository.Setup(r => r.DeleteAsync(1)).ReturnsAsync(true);
+        _mockRepository.Setup(r => r.DeleteAsync(1, TestUserId)).ReturnsAsync(true);
 
         // Act
-        var result = await _service.DeleteTaskAsync(1);
+        var result = await _service.DeleteTaskAsync(1, TestUserId);
 
         // Assert
         Assert.True(result.Success);
@@ -399,10 +446,10 @@ public class TaskServiceTests
     public async Task DeleteTaskAsync_WithInvalidId_ReturnsNotFound()
     {
         // Arrange
-        _mockRepository.Setup(r => r.DeleteAsync(999)).ReturnsAsync(false);
+        _mockRepository.Setup(r => r.DeleteAsync(999, TestUserId)).ReturnsAsync(false);
 
         // Act
-        var result = await _service.DeleteTaskAsync(999);
+        var result = await _service.DeleteTaskAsync(999, TestUserId);
 
         // Assert
         Assert.False(result.Success);
@@ -418,6 +465,7 @@ public class TaskServiceTests
         var existingTask = new TodoTask
         {
             Id = 1,
+            UserId = TestUserId,
             Title = "Existing Title",
             Description = "Existing Description",
             Status = TaskStatus.InProgress,
@@ -435,13 +483,13 @@ public class TaskServiceTests
         );
 
         TodoTask? capturedTask = null;
-        _mockRepository.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(existingTask);
-        _mockRepository.Setup(r => r.UpdateAsync(1, It.IsAny<TodoTask>()))
-            .Callback<int, TodoTask>((_, t) => capturedTask = t)
+        _mockRepository.Setup(r => r.GetByIdAsync(1, TestUserId)).ReturnsAsync(existingTask);
+        _mockRepository.Setup(r => r.UpdateAsync(1, TestUserId, It.IsAny<TodoTask>()))
+            .Callback<int, int, TodoTask>((_, __, t) => capturedTask = t)
             .ReturnsAsync(existingTask);
 
         // Act
-        var result = await _service.UpdateTaskAsync(1, dto);
+        var result = await _service.UpdateTaskAsync(1, TestUserId, dto);
 
         // Assert
         Assert.True(result.Success);
@@ -459,13 +507,13 @@ public class TaskServiceTests
     public async Task GetTasksPagedAsync_WithPageLessThanOne_ReturnsBadRequest(int page, int pageSize)
     {
         // Act
-        var result = await _service.GetTasksPagedAsync(page, pageSize);
+        var result = await _service.GetTasksPagedAsync(TestUserId, page, pageSize);
 
         // Assert
         Assert.False(result.Success);
         Assert.Equal(400, result.StatusCode);
         Assert.Equal("Page must be greater than 0", result.Error);
-        _mockRepository.Verify(r => r.GetPagedAsync(It.IsAny<int>(), It.IsAny<int>()), Times.Never);
+        _mockRepository.Verify(r => r.GetPagedAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>()), Times.Never);
     }
 
     [Theory]
@@ -476,13 +524,13 @@ public class TaskServiceTests
     public async Task GetTasksPagedAsync_WithInvalidPageSize_ReturnsBadRequest(int page, int pageSize)
     {
         // Act
-        var result = await _service.GetTasksPagedAsync(page, pageSize);
+        var result = await _service.GetTasksPagedAsync(TestUserId, page, pageSize);
 
         // Assert
         Assert.False(result.Success);
         Assert.Equal(400, result.StatusCode);
         Assert.Equal("PageSize must be between 1 and 100", result.Error);
-        _mockRepository.Verify(r => r.GetPagedAsync(It.IsAny<int>(), It.IsAny<int>()), Times.Never);
+        _mockRepository.Verify(r => r.GetPagedAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>()), Times.Never);
     }
 
     [Fact]
@@ -493,16 +541,16 @@ public class TaskServiceTests
         {
             Items = new List<TodoTask>
             {
-                new() { Id = 1, Title = "Task 1", Status = TaskStatus.Todo, Priority = TaskPriority.Medium, CreatedAt = DateTime.UtcNow }
+                new() { Id = 1, UserId = TestUserId, Title = "Task 1", Status = TaskStatus.Todo, Priority = TaskPriority.Medium, CreatedAt = DateTime.UtcNow }
             },
             TotalCount = 25,
             Page = 2,
             PageSize = 20
         };
-        _mockRepository.Setup(r => r.GetPagedAsync(2, 20)).ReturnsAsync(pagedTasks);
+        _mockRepository.Setup(r => r.GetPagedAsync(TestUserId, 2, 20)).ReturnsAsync(pagedTasks);
 
         // Act
-        var result = await _service.GetTasksPagedAsync(2, 20);
+        var result = await _service.GetTasksPagedAsync(TestUserId, 2, 20);
 
         // Assert
         Assert.True(result.Success);

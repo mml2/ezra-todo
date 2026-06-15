@@ -13,6 +13,8 @@ public class TaskRepositoryTests : IDisposable
     private readonly TodoDbContext _context;
     private readonly TaskRepository _repository;
     private readonly DbConnection _connection;
+    private const int TestUserId = 1;
+    private const int OtherUserId = 2;
 
     public TaskRepositoryTests()
     {
@@ -26,6 +28,29 @@ public class TaskRepositoryTests : IDisposable
 
         _context = new TodoDbContext(options);
         _context.Database.EnsureCreated();
+
+        // Seed demo users for tests
+        if (!_context.Users.Any())
+        {
+            _context.Users.AddRange(
+                new User
+                {
+                    Id = TestUserId,
+                    Username = "alice",
+                    PasswordHash = "AQAAAAIAAYagAAAAED9LUCdOa5OhgPPezSyWyqKypL7L2dsB/lmGD4Q0pmNoGeXdKEuYH3PZFK6OsQjJQw==",
+                    CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+                },
+                new User
+                {
+                    Id = OtherUserId,
+                    Username = "bob",
+                    PasswordHash = "AQAAAAIAAYagAAAAECDQtSX2Iop//8OB8GLUmMQT/l3BkvzahzBvn1GS8hF82HG9Y914cds1zehMnsnVTQ==",
+                    CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+                }
+            );
+            _context.SaveChanges();
+        }
+
         _repository = new TaskRepository(_context);
     }
 
@@ -36,11 +61,12 @@ public class TaskRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async Task GetAllAsync_ReturnsAllNonDeletedTasks()
+    public async Task GetAllAsync_ReturnsAllNonDeletedTasks_ForUser()
     {
         // Arrange
         var task1 = new TodoTask
         {
+            UserId = TestUserId,
             Title = "Task 1",
             Status = TaskStatus.Todo,
             Priority = TaskPriority.Medium,
@@ -48,6 +74,7 @@ public class TaskRepositoryTests : IDisposable
         };
         var task2 = new TodoTask
         {
+            UserId = TestUserId,
             Title = "Task 2",
             Status = TaskStatus.InProgress,
             Priority = TaskPriority.High,
@@ -58,7 +85,7 @@ public class TaskRepositoryTests : IDisposable
         await _context.SaveChangesAsync();
 
         // Act
-        var result = await _repository.GetAllAsync();
+        var result = await _repository.GetAllAsync(TestUserId);
 
         // Assert
         Assert.Equal(2, result.Count());
@@ -72,6 +99,7 @@ public class TaskRepositoryTests : IDisposable
         // Arrange
         var activeTask = new TodoTask
         {
+            UserId = TestUserId,
             Title = "Active Task",
             Status = TaskStatus.Todo,
             Priority = TaskPriority.Medium,
@@ -80,6 +108,7 @@ public class TaskRepositoryTests : IDisposable
         };
         var deletedTask = new TodoTask
         {
+            UserId = TestUserId,
             Title = "Deleted Task",
             Status = TaskStatus.Todo,
             Priority = TaskPriority.Low,
@@ -91,11 +120,43 @@ public class TaskRepositoryTests : IDisposable
         await _context.SaveChangesAsync();
 
         // Act
-        var result = await _repository.GetAllAsync();
+        var result = await _repository.GetAllAsync(TestUserId);
 
         // Assert
         Assert.Single(result);
         Assert.Equal("Active Task", result.First().Title);
+    }
+
+    [Fact]
+    public async Task GetAllAsync_ExcludesTasks_FromOtherUsers()
+    {
+        // Arrange
+        var aliceTask = new TodoTask
+        {
+            UserId = TestUserId,
+            Title = "Alice's Task",
+            Status = TaskStatus.Todo,
+            Priority = TaskPriority.Medium,
+            CreatedAt = DateTime.UtcNow
+        };
+        var bobTask = new TodoTask
+        {
+            UserId = OtherUserId,
+            Title = "Bob's Task",
+            Status = TaskStatus.Todo,
+            Priority = TaskPriority.Medium,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        await _context.Tasks.AddRangeAsync(aliceTask, bobTask);
+        await _context.SaveChangesAsync();
+
+        // Act
+        var result = await _repository.GetAllAsync(TestUserId);
+
+        // Assert - Alice sees only her task
+        Assert.Single(result);
+        Assert.Equal("Alice's Task", result.First().Title);
     }
 
     [Fact]
@@ -104,6 +165,7 @@ public class TaskRepositoryTests : IDisposable
         // Arrange
         var task = new TodoTask
         {
+            UserId = TestUserId,
             Title = "Test Task",
             Description = "Test Description",
             Status = TaskStatus.Todo,
@@ -115,7 +177,7 @@ public class TaskRepositoryTests : IDisposable
         await _context.SaveChangesAsync();
 
         // Act
-        var result = await _repository.GetByIdAsync(task.Id);
+        var result = await _repository.GetByIdAsync(task.Id, TestUserId);
 
         // Assert
         Assert.NotNull(result);
@@ -127,7 +189,7 @@ public class TaskRepositoryTests : IDisposable
     public async Task GetByIdAsync_ReturnsNull_WhenNotFound()
     {
         // Act
-        var result = await _repository.GetByIdAsync(999);
+        var result = await _repository.GetByIdAsync(999, TestUserId);
 
         // Assert
         Assert.Null(result);
@@ -139,6 +201,7 @@ public class TaskRepositoryTests : IDisposable
         // Arrange
         var task = new TodoTask
         {
+            UserId = TestUserId,
             Title = "Deleted Task",
             Status = TaskStatus.Todo,
             Priority = TaskPriority.Low,
@@ -150,9 +213,32 @@ public class TaskRepositoryTests : IDisposable
         await _context.SaveChangesAsync();
 
         // Act
-        var result = await _repository.GetByIdAsync(task.Id);
+        var result = await _repository.GetByIdAsync(task.Id, TestUserId);
 
         // Assert
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task GetByIdAsync_ReturnsNull_ForTaskOwnedByDifferentUser()
+    {
+        // Arrange - Bob creates a task
+        var bobTask = new TodoTask
+        {
+            UserId = OtherUserId,
+            Title = "Bob's Task",
+            Status = TaskStatus.Todo,
+            Priority = TaskPriority.High,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        await _context.Tasks.AddAsync(bobTask);
+        await _context.SaveChangesAsync();
+
+        // Act - Alice tries to fetch Bob's task
+        var result = await _repository.GetByIdAsync(bobTask.Id, TestUserId);
+
+        // Assert - Alice sees "not found"
         Assert.Null(result);
     }
 
@@ -163,6 +249,7 @@ public class TaskRepositoryTests : IDisposable
         var beforeCreate = DateTime.UtcNow;
         var newTask = new TodoTask
         {
+            UserId = 1,
             Title = "New Task",
             Description = "New Description",
             Status = TaskStatus.Todo,
@@ -188,6 +275,7 @@ public class TaskRepositoryTests : IDisposable
         // Arrange
         var task = new TodoTask
         {
+            UserId = TestUserId,
             Title = "Original Title",
             Description = "Original Description",
             Status = TaskStatus.Todo,
@@ -209,7 +297,7 @@ public class TaskRepositoryTests : IDisposable
         var beforeUpdate = DateTime.UtcNow;
 
         // Act
-        var result = await _repository.UpdateAsync(task.Id, updatedTask);
+        var result = await _repository.UpdateAsync(task.Id, TestUserId, updatedTask);
         var afterUpdate = DateTime.UtcNow;
 
         // Assert
@@ -234,9 +322,39 @@ public class TaskRepositoryTests : IDisposable
         };
 
         // Act
-        var result = await _repository.UpdateAsync(999, updatedTask);
+        var result = await _repository.UpdateAsync(999, TestUserId, updatedTask);
 
         // Assert
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_ReturnsNull_ForTaskOwnedByDifferentUser()
+    {
+        // Arrange - Bob creates a task
+        var bobTask = new TodoTask
+        {
+            UserId = OtherUserId,
+            Title = "Bob's Task",
+            Status = TaskStatus.Todo,
+            Priority = TaskPriority.Low,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        await _context.Tasks.AddAsync(bobTask);
+        await _context.SaveChangesAsync();
+
+        var updatedTask = new TodoTask
+        {
+            Title = "Hijacked Title",
+            Status = TaskStatus.Done,
+            Priority = TaskPriority.Medium
+        };
+
+        // Act - Alice tries to update Bob's task
+        var result = await _repository.UpdateAsync(bobTask.Id, TestUserId, updatedTask);
+
+        // Assert - update fails (task not found for Alice)
         Assert.Null(result);
     }
 
@@ -246,6 +364,7 @@ public class TaskRepositoryTests : IDisposable
         // Arrange
         var task = new TodoTask
         {
+            UserId = TestUserId,
             Title = "Task to Delete",
             Status = TaskStatus.Todo,
             Priority = TaskPriority.Low,
@@ -256,7 +375,7 @@ public class TaskRepositoryTests : IDisposable
         await _context.SaveChangesAsync();
 
         // Act
-        var result = await _repository.DeleteAsync(task.Id);
+        var result = await _repository.DeleteAsync(task.Id, TestUserId);
 
         // Assert
         Assert.True(result);
@@ -268,7 +387,7 @@ public class TaskRepositoryTests : IDisposable
         Assert.True(deletedTask.IsDeleted);
 
         // Verify task is not returned by GetByIdAsync
-        var getResult = await _repository.GetByIdAsync(task.Id);
+        var getResult = await _repository.GetByIdAsync(task.Id, TestUserId);
         Assert.Null(getResult);
     }
 
@@ -276,20 +395,49 @@ public class TaskRepositoryTests : IDisposable
     public async Task DeleteAsync_ReturnsFalse_ForNonExistentTask()
     {
         // Act
-        var result = await _repository.DeleteAsync(999);
+        var result = await _repository.DeleteAsync(999, TestUserId);
 
         // Assert
         Assert.False(result);
     }
 
     [Fact]
-    public async Task GetPagedAsync_ReturnsCorrectSlice()
+    public async Task DeleteAsync_ReturnsFalse_ForTaskOwnedByDifferentUser()
+    {
+        // Arrange - Bob creates a task
+        var bobTask = new TodoTask
+        {
+            UserId = OtherUserId,
+            Title = "Bob's Task",
+            Status = TaskStatus.Todo,
+            Priority = TaskPriority.Low,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        await _context.Tasks.AddAsync(bobTask);
+        await _context.SaveChangesAsync();
+
+        // Act - Alice tries to delete Bob's task
+        var result = await _repository.DeleteAsync(bobTask.Id, TestUserId);
+
+        // Assert - delete fails
+        Assert.False(result);
+
+        // Verify Bob's task still exists
+        var stillThere = await _context.Tasks.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(t => t.Id == bobTask.Id);
+        Assert.NotNull(stillThere);
+        Assert.False(stillThere.IsDeleted);
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_ReturnsCorrectSlice_ForUser()
     {
         // Arrange - 5 tasks with distinct creation times (newest first ordering)
-        await SeedTasksAsync(5);
+        await SeedTasksAsync(5, TestUserId);
 
         // Act - page 2 with pageSize 2 should return the 3rd and 4th newest tasks
-        var result = await _repository.GetPagedAsync(page: 2, pageSize: 2);
+        var result = await _repository.GetPagedAsync(TestUserId, page: 2, pageSize: 2);
 
         // Assert
         Assert.Equal(2, result.Items.Count());
@@ -303,10 +451,10 @@ public class TaskRepositoryTests : IDisposable
     public async Task GetPagedAsync_OrdersByCreatedAtDescending()
     {
         // Arrange
-        await SeedTasksAsync(3);
+        await SeedTasksAsync(3, TestUserId);
 
         // Act
-        var result = await _repository.GetPagedAsync(page: 1, pageSize: 10);
+        var result = await _repository.GetPagedAsync(TestUserId, page: 1, pageSize: 10);
 
         // Assert - newest task first
         var titles = result.Items.Select(t => t.Title).ToList();
@@ -317,9 +465,10 @@ public class TaskRepositoryTests : IDisposable
     public async Task GetPagedAsync_ReturnsTotalCountExcludingSoftDeleted()
     {
         // Arrange
-        await SeedTasksAsync(3);
+        await SeedTasksAsync(3, TestUserId);
         var deletedTask = new TodoTask
         {
+            UserId = TestUserId,
             Title = "Deleted Task",
             Status = TaskStatus.Todo,
             Priority = TaskPriority.Low,
@@ -330,7 +479,7 @@ public class TaskRepositoryTests : IDisposable
         await _context.SaveChangesAsync();
 
         // Act
-        var result = await _repository.GetPagedAsync(page: 1, pageSize: 2);
+        var result = await _repository.GetPagedAsync(TestUserId, page: 1, pageSize: 2);
 
         // Assert - TotalCount reflects all non-deleted tasks, not just the page
         Assert.Equal(3, result.TotalCount);
@@ -342,17 +491,33 @@ public class TaskRepositoryTests : IDisposable
     public async Task GetPagedAsync_BeyondLastPage_ReturnsEmptyItems()
     {
         // Arrange
-        await SeedTasksAsync(3);
+        await SeedTasksAsync(3, TestUserId);
 
         // Act
-        var result = await _repository.GetPagedAsync(page: 5, pageSize: 10);
+        var result = await _repository.GetPagedAsync(TestUserId, page: 5, pageSize: 10);
 
         // Assert
         Assert.Empty(result.Items);
         Assert.Equal(3, result.TotalCount);
     }
 
-    private async Task SeedTasksAsync(int count)
+    [Fact]
+    public async Task GetPagedAsync_ExcludesTasks_FromOtherUsers()
+    {
+        // Arrange - Alice has 2 tasks, Bob has 3 tasks
+        await SeedTasksAsync(2, TestUserId);
+        await SeedTasksAsync(3, OtherUserId);
+
+        // Act - Alice views page 1
+        var result = await _repository.GetPagedAsync(TestUserId, page: 1, pageSize: 10);
+
+        // Assert - Alice sees only her 2 tasks
+        Assert.Equal(2, result.TotalCount);
+        Assert.Equal(2, result.Items.Count());
+        Assert.All(result.Items, t => Assert.Equal(TestUserId, t.UserId));
+    }
+
+    private async Task SeedTasksAsync(int count, int userId)
     {
         // Stagger CreatedAt so "Task {count}" is the newest
         var baseTime = DateTime.UtcNow.AddHours(-count);
@@ -360,6 +525,7 @@ public class TaskRepositoryTests : IDisposable
         {
             await _context.Tasks.AddAsync(new TodoTask
             {
+                UserId = userId,
                 Title = $"Task {i}",
                 Status = TaskStatus.Todo,
                 Priority = TaskPriority.Medium,

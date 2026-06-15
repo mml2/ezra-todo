@@ -24,13 +24,56 @@ servers:
   - url: http://localhost:5000/api
     description: Local development server
 
-security: []
+security:
+  - bearerAuth: []
 
 tags:
+  - name: Authentication
+    description: User authentication and login
   - name: Tasks
     description: Task management operations
 
 paths:
+  /auth/login:
+    post:
+      tags: [Authentication]
+      summary: User login
+      description: |
+        Authenticates a user with username and password. On success, returns a JWT bearer token
+        valid for 60 minutes. On failure (invalid credentials), returns a generic 401 error
+        (does not distinguish between wrong password and unknown username to prevent user enumeration).
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginDto"
+            example:
+              username: alice
+              password: Password123!
+      responses:
+        "200":
+          description: Login successful — returns JWT bearer token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponseDto"
+              example:
+                token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                expiresAt: "2026-06-15T11:45:00Z"
+                username: alice
+        "401":
+          description: |
+            Invalid credentials (wrong password or unknown username).
+            The API returns an identical error message for both cases to prevent user enumeration.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: Invalid credentials
   /tasks:
     get:
       tags: [Tasks]
@@ -122,6 +165,14 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
               example:
                 error: PageSize must be between 1 and 100
+        "401":
+          description: Missing or invalid authorization token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: Unauthorized
 
     post:
       tags: [Tasks]
@@ -190,6 +241,14 @@ paths:
                     errors:
                       priority:
                         - Invalid priority value
+        "401":
+          description: Missing or invalid authorization token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: Unauthorized
 
   /tasks/{id}:
     parameters:
@@ -223,8 +282,19 @@ paths:
                 createdAt: "2026-06-15T10:00:00Z"
                 updatedAt: "2026-06-15T14:30:00Z"
                 dueDate: "2026-12-31T00:00:00Z"
+        "401":
+          description: Missing or invalid authorization token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: Unauthorized
         "404":
-          description: Task not found (or has been soft-deleted)
+          description: |
+            Task not found, soft-deleted, or not owned by the authenticated user.
+            Ownership checks return 404 (not 403) to prevent leaking task existence
+            to unauthorized probes.
           content:
             application/json:
               schema:
@@ -297,8 +367,19 @@ paths:
                     errors:
                       title:
                         - Title must not exceed 200 characters
+        "401":
+          description: Missing or invalid authorization token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: Unauthorized
         "404":
-          description: Task not found
+          description: |
+            Task not found, soft-deleted, or not owned by the authenticated user.
+            Ownership checks return 404 (not 403) to prevent leaking task existence
+            to unauthorized probes.
           content:
             application/json:
               schema:
@@ -317,8 +398,19 @@ paths:
       responses:
         "204":
           description: Task deleted — no response body
+        "401":
+          description: Missing or invalid authorization token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: Unauthorized
         "404":
-          description: Task not found
+          description: |
+            Task not found, soft-deleted, or not owned by the authenticated user.
+            Ownership checks return 404 (not 403) to prevent leaking task existence
+            to unauthorized probes.
           content:
             application/json:
               schema:
@@ -380,8 +472,19 @@ paths:
                 errors:
                   status:
                     - Invalid status value
+        "401":
+          description: Missing or invalid authorization token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: Unauthorized
         "404":
-          description: Task not found
+          description: |
+            Task not found, soft-deleted, or not owned by the authenticated user.
+            Ownership checks return 404 (not 403) to prevent leaking task existence
+            to unauthorized probes.
           content:
             application/json:
               schema:
@@ -390,7 +493,52 @@ paths:
                 error: Task not found
 
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT bearer token obtained from POST /api/auth/login
+
   schemas:
+
+    LoginDto:
+      type: object
+      description: Request body for user login
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          description: Username
+          example: alice
+        password:
+          type: string
+          description: Password (plaintext in request, hashed on server)
+          example: Password123!
+
+    AuthResponseDto:
+      type: object
+      description: Response returned on successful login
+      required:
+        - token
+        - expiresAt
+        - username
+      properties:
+        token:
+          type: string
+          description: JWT bearer token signed with HMAC-SHA256, valid for 60 minutes
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhbGljZSIsIm5hbWUiOiJBbGljZSIsImlhdCI6MTcxODQ0MzQwMH0.7Z...
+        expiresAt:
+          type: string
+          format: date-time
+          description: UTC timestamp when the token expires (60 minutes from login)
+          example: "2026-06-15T11:45:00Z"
+        username:
+          type: string
+          description: Authenticated username
+          example: alice
 
     TaskStatus:
       type: string
