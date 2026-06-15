@@ -1,10 +1,36 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { AxiosError } from 'axios';
 import { renderWithProviders } from '../test/utils';
 import TaskForm from './TaskForm';
+import { taskApi } from '../services/api';
 import { TaskStatus, TaskPriority } from '../types/task';
 import type { Task } from '../types/task';
+
+vi.mock('../services/api', () => ({
+  taskApi: {
+    getAll: vi.fn(),
+    getPaged: vi.fn(),
+    getById: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    updateStatus: vi.fn(),
+    delete: vi.fn(),
+  },
+}));
+
+function makeAxiosError(status: number, data: unknown): AxiosError {
+  const error = new AxiosError('Request failed');
+  error.response = {
+    status,
+    data,
+    statusText: '',
+    headers: {},
+    config: {} as never,
+  };
+  return error;
+}
 
 const mockTask: Task = {
   id: 1,
@@ -23,6 +49,12 @@ describe('TaskForm', () => {
   beforeEach(() => {
     mockOnSuccess.mockClear();
     mockOnCancel.mockClear();
+    vi.mocked(taskApi.create).mockReset();
+    vi.mocked(taskApi.update).mockReset();
+    // Default: mutation stays pending so loading-state tests observe the
+    // submitting UI. Error/success tests override per-test.
+    vi.mocked(taskApi.create).mockReturnValue(new Promise(() => {}));
+    vi.mocked(taskApi.update).mockReturnValue(new Promise(() => {}));
   });
 
   describe('Create Mode (no task prop)', () => {
@@ -443,6 +475,78 @@ describe('TaskForm', () => {
 
       const form = screen.getByRole('heading', { name: /new task/i }).closest('form');
       expect(form).toBeInTheDocument();
+    });
+  });
+
+  describe('Server Validation Errors', () => {
+    it('surfaces backend 400 field errors inline below the relevant input', async () => {
+      const user = userEvent.setup();
+      vi.mocked(taskApi.create).mockRejectedValue(
+        makeAxiosError(400, {
+          errors: { title: ['Title must not exceed 200 characters'] },
+        })
+      );
+
+      renderWithProviders(<TaskForm onSuccess={mockOnSuccess} />);
+
+      await user.type(screen.getByLabelText(/title/i), 'Valid Title');
+      await user.click(screen.getByRole('button', { name: /create task/i }));
+
+      expect(
+        await screen.findByText(/Title must not exceed 200 characters/)
+      ).toBeInTheDocument();
+      expect(mockOnSuccess).not.toHaveBeenCalled();
+    });
+
+    it('falls back to the generic message when a 400 has no structured errors', async () => {
+      const user = userEvent.setup();
+      vi.mocked(taskApi.create).mockRejectedValue(
+        makeAxiosError(400, { detail: 'Bad request' })
+      );
+
+      renderWithProviders(<TaskForm onSuccess={mockOnSuccess} />);
+
+      await user.type(screen.getByLabelText(/title/i), 'Valid Title');
+      await user.click(screen.getByRole('button', { name: /create task/i }));
+
+      expect(
+        await screen.findByText(/failed to save task/i)
+      ).toBeInTheDocument();
+      expect(mockOnSuccess).not.toHaveBeenCalled();
+    });
+
+    it('falls back to the generic message for a non-axios error', async () => {
+      const user = userEvent.setup();
+      vi.mocked(taskApi.create).mockRejectedValue(new Error('network down'));
+
+      renderWithProviders(<TaskForm onSuccess={mockOnSuccess} />);
+
+      await user.type(screen.getByLabelText(/title/i), 'Valid Title');
+      await user.click(screen.getByRole('button', { name: /create task/i }));
+
+      expect(
+        await screen.findByText(/failed to save task/i)
+      ).toBeInTheDocument();
+      expect(mockOnSuccess).not.toHaveBeenCalled();
+    });
+
+    it('rejects today date during validation (bug fix)', async () => {
+      const user = userEvent.setup();
+      renderWithProviders(<TaskForm onSuccess={mockOnSuccess} />);
+
+      const titleInput = screen.getByLabelText(/title/i);
+      await user.type(titleInput, 'Valid Title');
+
+      const today = new Date().toISOString().split('T')[0];
+      const dueDateInput = screen.getByLabelText(/due date/i);
+      await user.type(dueDateInput, today);
+
+      const submitButton = screen.getByRole('button', { name: /create task/i });
+      await user.click(submitButton);
+
+      // Should show error - today's date is not allowed
+      expect(await screen.findByText(/due date must be in the future/i)).toBeInTheDocument();
+      expect(mockOnSuccess).not.toHaveBeenCalled();
     });
   });
 });
