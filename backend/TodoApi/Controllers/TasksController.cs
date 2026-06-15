@@ -62,7 +62,7 @@ public class TasksController : ControllerBase
         // Validate input
         var validationResult = await _createTaskValidator.ValidateAsync(dto);
         if (!validationResult.IsValid)
-            return BadRequest(new { errors = validationResult.ToDictionary() });
+            return ValidationError(validationResult);
 
         var result = await _service.CreateTaskAsync(dto);
 
@@ -70,7 +70,8 @@ public class TasksController : ControllerBase
             return StatusCode(result.StatusCode, new { error = result.Error });
 
         // 201 Created with Location header pointing at the new resource (REST convention)
-        return CreatedAtAction(nameof(GetTask), new { id = result.Data!.Id }, result.Data);
+        var data = result.Data ?? throw new InvalidOperationException("CreateTaskAsync returned success with null data.");
+        return CreatedAtAction(nameof(GetTask), new { id = data.Id }, data);
     }
 
     [HttpPut("{id}")]
@@ -79,7 +80,7 @@ public class TasksController : ControllerBase
         // Validate input
         var validationResult = await _updateTaskValidator.ValidateAsync(dto);
         if (!validationResult.IsValid)
-            return BadRequest(new { errors = validationResult.ToDictionary() });
+            return ValidationError(validationResult);
 
         var result = await _service.UpdateTaskAsync(id, dto);
 
@@ -95,7 +96,7 @@ public class TasksController : ControllerBase
         // Validate input
         var validationResult = await _updateTaskStatusValidator.ValidateAsync(dto);
         if (!validationResult.IsValid)
-            return BadRequest(new { errors = validationResult.ToDictionary() });
+            return ValidationError(validationResult);
 
         var result = await _service.UpdateTaskStatusAsync(id, dto);
 
@@ -115,4 +116,7 @@ public class TasksController : ControllerBase
 
         return NoContent();
     }
+
+    private static IActionResult ValidationError(FluentValidation.Results.ValidationResult result) =>
+        new BadRequestObjectResult(new { errors = result.ToDictionary() });
 }

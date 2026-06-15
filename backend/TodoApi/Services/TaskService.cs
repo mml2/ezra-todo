@@ -69,19 +69,13 @@ public class TaskService : ITaskService
         if (dto.Description?.Length > 1000)
             return Result<TaskResponseDto>.Fail("Description must not exceed 1000 characters", 400);
 
-        // Validate priority is a valid enum value
-        if (!Enum.IsDefined(typeof(TaskPriority), dto.Priority))
-            return Result<TaskResponseDto>.Fail("Invalid priority value", 400);
-
         var task = new TodoTask
         {
             Title = dto.Title,
             Description = dto.Description,
             Status = TaskStatus.Todo,
             Priority = dto.Priority,
-            DueDate = dto.DueDate,
-            CreatedAt = DateTime.UtcNow,
-            IsDeleted = false
+            DueDate = dto.DueDate
         };
 
         var createdTask = await _repository.CreateAsync(task);
@@ -108,13 +102,6 @@ public class TaskService : ITaskService
         if (dto.Description?.Length > 1000)
             return Result<TaskResponseDto>.Fail("Description must not exceed 1000 characters", 400);
 
-        // Validate enums if provided
-        if (dto.Status.HasValue && !Enum.IsDefined(typeof(TaskStatus), dto.Status.Value))
-            return Result<TaskResponseDto>.Fail("Invalid status value", 400);
-
-        if (dto.Priority.HasValue && !Enum.IsDefined(typeof(TaskPriority), dto.Priority.Value))
-            return Result<TaskResponseDto>.Fail("Invalid priority value", 400);
-
         // Get existing task
         var existingTask = await _repository.GetByIdAsync(id);
 
@@ -140,10 +127,6 @@ public class TaskService : ITaskService
     public async Task<Result<TaskResponseDto>> UpdateTaskStatusAsync(int id, UpdateTaskStatusDto dto)
     {
         _logger.LogInformation("Updating status for task {TaskId} to {Status}", id, dto.Status);
-
-        // Validation - Defense in depth (also validated at controller boundary with FluentValidation)
-        if (!Enum.IsDefined(typeof(TaskStatus), dto.Status))
-            return Result<TaskResponseDto>.Fail("Invalid status value", 400);
 
         var existingTask = await _repository.GetByIdAsync(id);
 

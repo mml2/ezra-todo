@@ -22,19 +22,20 @@ public class TaskRepository : ITaskRepository
 
     public async Task<PagedResult<TodoTask>> GetPagedAsync(int page, int pageSize)
     {
-        var totalCount = await _context.Tasks.CountAsync();
-
-        var items = await _context.Tasks
+        var countTask = _context.Tasks.CountAsync();
+        var itemsTask = _context.Tasks
             .AsNoTracking()
             .OrderByDescending(t => t.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();
 
+        await Task.WhenAll(countTask, itemsTask);
+
         return new PagedResult<TodoTask>
         {
-            Items = items,
-            TotalCount = totalCount,
+            Items = itemsTask.Result,
+            TotalCount = countTask.Result,
             Page = page,
             PageSize = pageSize
         };
