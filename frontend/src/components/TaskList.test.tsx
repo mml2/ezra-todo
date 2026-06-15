@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { renderWithProviders } from '../test/utils';
+import { renderWithRouter } from '../test/utils';
 import TaskList from './TaskList';
 import { taskApi } from '../services/api';
 import { TaskStatus, TaskPriority } from '../types/task';
@@ -50,7 +50,7 @@ function makePaged(
 }
 
 /** Mocks both queries TaskList fires: getAll (stats/filters) and getPaged (display). */
-function mockTasks(tasks: Task[], pageSize = 20) {
+function mockTasks(tasks: Task[]) {
   vi.mocked(taskApi.getAll).mockResolvedValue(tasks);
   vi.mocked(taskApi.getPaged).mockImplementation(async (page: number, size: number) => {
     const start = (page - 1) * size;
@@ -69,7 +69,7 @@ describe('TaskList', () => {
       vi.mocked(taskApi.getAll).mockImplementation(() => new Promise(() => {}));
       vi.mocked(taskApi.getPaged).mockImplementation(() => new Promise(() => {}));
 
-      renderWithProviders(<TaskList />);
+      renderWithRouter(<TaskList />);
 
       expect(screen.getByText(/loading tasks/i)).toBeInTheDocument();
     });
@@ -78,7 +78,7 @@ describe('TaskList', () => {
       vi.mocked(taskApi.getAll).mockResolvedValue([]);
       vi.mocked(taskApi.getPaged).mockRejectedValue(new Error('Network down'));
 
-      renderWithProviders(<TaskList />);
+      renderWithRouter(<TaskList />);
 
       expect(await screen.findByText(/connection error/i)).toBeInTheDocument();
       expect(screen.getByText(/unable to connect to the backend server/i)).toBeInTheDocument();
@@ -87,7 +87,7 @@ describe('TaskList', () => {
     it('shows empty state when no tasks exist', async () => {
       mockTasks([]);
 
-      renderWithProviders(<TaskList />);
+      renderWithRouter(<TaskList />);
 
       expect(await screen.findByText(/your task list is empty/i)).toBeInTheDocument();
       expect(screen.getByText(/click "new task" above to begin/i)).toBeInTheDocument();
@@ -101,7 +101,7 @@ describe('TaskList', () => {
         makeTask(2, { title: 'Review PR' }),
       ]);
 
-      renderWithProviders(<TaskList />);
+      renderWithRouter(<TaskList />);
 
       expect(await screen.findByText('Write report')).toBeInTheDocument();
       expect(screen.getByText('Review PR')).toBeInTheDocument();
@@ -110,7 +110,7 @@ describe('TaskList', () => {
     it('renders the page header', async () => {
       mockTasks([makeTask(1)]);
 
-      renderWithProviders(<TaskList />);
+      renderWithRouter(<TaskList />);
 
       expect(
         await screen.findByRole('heading', { name: /task manager/i })
@@ -130,7 +130,7 @@ describe('TaskList', () => {
       ];
       mockTasks(tasks);
 
-      renderWithProviders(<TaskList />);
+      renderWithRouter(<TaskList />);
 
       expect(await screen.findByText('15')).toBeInTheDocument(); // Total
       expect(screen.getByText('7')).toBeInTheDocument(); // To Do
@@ -147,7 +147,7 @@ describe('TaskList', () => {
         makeTask(2, { title: 'Done task', status: TaskStatus.Done }),
       ]);
 
-      renderWithProviders(<TaskList />);
+      renderWithRouter(<TaskList />);
       await screen.findByText('Todo task');
 
       const statusFilter = screen.getByDisplayValue('All Status');
@@ -164,7 +164,7 @@ describe('TaskList', () => {
         makeTask(2, { title: 'High priority task', priority: TaskPriority.High }),
       ]);
 
-      renderWithProviders(<TaskList />);
+      renderWithRouter(<TaskList />);
       await screen.findByText('Low priority task');
 
       const priorityFilter = screen.getByDisplayValue('All Priorities');
@@ -178,7 +178,7 @@ describe('TaskList', () => {
       const user = userEvent.setup();
       mockTasks([makeTask(1, { title: 'Only todo', status: TaskStatus.Todo })]);
 
-      renderWithProviders(<TaskList />);
+      renderWithRouter(<TaskList />);
       await screen.findByText('Only todo');
 
       const statusFilter = screen.getByDisplayValue('All Status');
@@ -195,7 +195,7 @@ describe('TaskList', () => {
         makeTask(2, { title: 'Done task', status: TaskStatus.Done }),
       ]);
 
-      renderWithProviders(<TaskList />);
+      renderWithRouter(<TaskList />);
       await screen.findByText('Todo task');
 
       const statusFilter = screen.getByDisplayValue('All Status');
@@ -214,7 +214,7 @@ describe('TaskList', () => {
     it('does not render pagination controls when there is a single page', async () => {
       mockTasks([makeTask(1), makeTask(2)]);
 
-      renderWithProviders(<TaskList />);
+      renderWithRouter(<TaskList />);
       await screen.findByText('Task 1');
 
       expect(screen.queryByRole('button', { name: /next/i })).not.toBeInTheDocument();
@@ -224,7 +224,7 @@ describe('TaskList', () => {
     it('disables Prev on the first page and enables Next when more pages exist', async () => {
       mockTasks(Array.from({ length: 45 }, (_, i) => makeTask(i + 1)));
 
-      renderWithProviders(<TaskList />);
+      renderWithRouter(<TaskList />);
       await screen.findByText('Page 1');
 
       expect(screen.getByRole('button', { name: /prev/i })).toBeDisabled();
@@ -235,7 +235,7 @@ describe('TaskList', () => {
       const user = userEvent.setup();
       mockTasks(Array.from({ length: 45 }, (_, i) => makeTask(i + 1)));
 
-      renderWithProviders(<TaskList />);
+      renderWithRouter(<TaskList />);
       await screen.findByText('Page 1');
 
       await user.click(screen.getByRole('button', { name: /next/i }));
@@ -250,7 +250,7 @@ describe('TaskList', () => {
       const user = userEvent.setup();
       mockTasks(Array.from({ length: 25 }, (_, i) => makeTask(i + 1)));
 
-      renderWithProviders(<TaskList />);
+      renderWithRouter(<TaskList />);
       await screen.findByText('Page 1');
 
       await user.click(screen.getByRole('button', { name: /next/i }));
@@ -266,7 +266,7 @@ describe('TaskList', () => {
         Array.from({ length: 25 }, (_, i) => makeTask(i + 1, { status: TaskStatus.Todo }))
       );
 
-      renderWithProviders(<TaskList />);
+      renderWithRouter(<TaskList />);
       await screen.findByText('Task 1');
 
       const statusFilter = screen.getByDisplayValue('All Status');
@@ -289,7 +289,7 @@ describe('TaskList', () => {
       mockTasks([makeTask(1, { title: 'Task to delete' })]);
       vi.mocked(taskApi.delete).mockResolvedValue(undefined);
 
-      renderWithProviders(<TaskList />);
+      renderWithRouter(<TaskList />);
       await screen.findByText('Task to delete');
 
       await user.click(screen.getByRole('button', { name: /delete/i }));
@@ -304,7 +304,7 @@ describe('TaskList', () => {
       const user = userEvent.setup();
       mockTasks([makeTask(1)]);
 
-      renderWithProviders(<TaskList />);
+      renderWithRouter(<TaskList />);
       await screen.findByText('Task 1');
 
       await user.click(screen.getByRole('button', { name: /new task/i }));

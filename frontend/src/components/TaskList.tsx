@@ -1,14 +1,23 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { useTasks, useTasksPaged } from '../hooks/useTasks';
 import TaskItem from './TaskItem';
 import TaskForm from './TaskForm';
 import { TaskStatus, TaskPriority } from '../types/task';
 
 export default function TaskList() {
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
   const [page, setPage] = useState(1);
   const [showForm, setShowForm] = useState(false);
   const [filterStatus, setFilterStatus] = useState<TaskStatus | 'All'>('All');
   const [filterPriority, setFilterPriority] = useState<TaskPriority | 'All'>('All');
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
   const handleFilterChange = (type: 'status' | 'priority', value: string) => {
     setPage(1);
@@ -91,12 +100,28 @@ export default function TaskList() {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <header className="mb-12 animate-slide-up">
-          <h1
-            style={{ fontFamily: 'var(--font-serif)', color: 'var(--color-ink)' }}
-            className="text-5xl sm:text-6xl lg:text-7xl font-bold mb-4 leading-none"
-          >
-            Task Manager
-          </h1>
+          <div className="flex items-center justify-between mb-4">
+            <h1
+              style={{ fontFamily: 'var(--font-serif)', color: 'var(--color-ink)' }}
+              className="text-5xl sm:text-6xl lg:text-7xl font-bold leading-none"
+            >
+              Task Manager
+            </h1>
+            <div className="flex items-center gap-4">
+              {user?.username && (
+                <span style={{ color: 'var(--color-stone)' }} className="text-sm font-semibold">
+                  {user.username}
+                </span>
+              )}
+              <button
+                onClick={handleLogout}
+                style={{ background: 'var(--color-mist)', color: 'var(--color-stone)' }}
+                className="px-4 py-2 text-sm font-semibold uppercase tracking-wide rounded-sm hover:bg-[var(--color-stone)] hover:text-white transition-colors"
+              >
+                Logout
+              </button>
+            </div>
+          </div>
           <p style={{ color: 'var(--color-stone)' }} className="text-lg max-w-2xl">
             An editorial approach to productivity. Curate your work with precision and intention.
           </p>
