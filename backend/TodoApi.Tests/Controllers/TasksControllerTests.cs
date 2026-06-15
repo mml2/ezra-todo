@@ -362,4 +362,170 @@ public class TasksControllerTests : IClassFixture<WebApplicationFactory<Program>
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
+
+    [Fact]
+    public async Task CreateTask_ReturnsBadRequest_WhenDescriptionExceedsMaxLength()
+    {
+        // Arrange
+        var dto = new CreateTaskDto(
+            Title: "Valid Title",
+            Description: new string('x', 1001),
+            Priority: TaskPriority.Low,
+            DueDate: null
+        );
+
+        // Act
+        var response = await _client.PostAsJsonAsync("/api/tasks", dto);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateTask_ReturnsBadRequest_WhenDueDateIsInThePast()
+    {
+        // Arrange
+        var dto = new CreateTaskDto(
+            Title: "Valid Title",
+            Description: null,
+            Priority: TaskPriority.Low,
+            DueDate: DateTime.UtcNow.AddDays(-1)
+        );
+
+        // Act
+        var response = await _client.PostAsJsonAsync("/api/tasks", dto);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UpdateTask_ReturnsBadRequest_WhenTitleIsEmpty()
+    {
+        // Arrange
+        using var scope = _factory.Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<TodoDbContext>();
+        var task = new TodoTask
+        {
+            Title = "Original",
+            Status = TaskStatus.Todo,
+            Priority = TaskPriority.Low,
+            CreatedAt = DateTime.UtcNow
+        };
+        context.Tasks.Add(task);
+        await context.SaveChangesAsync();
+
+        var dto = new UpdateTaskDto(
+            Title: "",
+            Description: null,
+            Status: null,
+            Priority: null,
+            DueDate: null
+        );
+
+        // Act
+        var response = await _client.PutAsJsonAsync($"/api/tasks/{task.Id}", dto);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UpdateTask_ReturnsBadRequest_WhenDescriptionExceedsMaxLength()
+    {
+        // Arrange
+        using var scope = _factory.Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<TodoDbContext>();
+        var task = new TodoTask
+        {
+            Title = "Original",
+            Status = TaskStatus.Todo,
+            Priority = TaskPriority.Low,
+            CreatedAt = DateTime.UtcNow
+        };
+        context.Tasks.Add(task);
+        await context.SaveChangesAsync();
+
+        var dto = new UpdateTaskDto(
+            Title: null,
+            Description: new string('x', 1001),
+            Status: null,
+            Priority: null,
+            DueDate: null
+        );
+
+        // Act
+        var response = await _client.PutAsJsonAsync($"/api/tasks/{task.Id}", dto);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UpdateTaskStatus_ReturnsNotFound_WhenTaskDoesNotExist()
+    {
+        // Arrange
+        var dto = new UpdateTaskStatusDto(TaskStatus.Done);
+
+        // Act
+        var response = await _client.PatchAsJsonAsync("/api/tasks/999/status", dto);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UpdateTaskStatus_ReturnsBadRequest_WhenStatusIsInvalidEnumValue()
+    {
+        // Arrange - "Archived" is not a valid TaskStatus
+        var content = new StringContent(
+            """{"status":"Archived"}""",
+            System.Text.Encoding.UTF8,
+            "application/json");
+
+        // Act
+        var response = await _client.PatchAsync("/api/tasks/1/status", content);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetTasks_ReturnsAllTasks_WhenOnlyPageProvided()
+    {
+        // Controller only paginates when BOTH page and pageSize are present;
+        // a lone page= parameter falls through to the unpaginated path.
+        var response = await _client.GetAsync("/api/tasks?page=1");
+
+        // Assert — falls back to the full list endpoint
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetTasks_ReturnsPaginatedResult_WhenBothParamsProvided()
+    {
+        // Arrange — seed 3 tasks
+        using var scope = _factory.Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<TodoDbContext>();
+        for (var n = 1; n <= 3; n++)
+        {
+            context.Tasks.Add(new TodoTask
+            {
+                Title = $"Paged Task {n}",
+                Status = TaskStatus.Todo,
+                Priority = TaskPriority.Low,
+                CreatedAt = DateTime.UtcNow
+            });
+        }
+        await context.SaveChangesAsync();
+
+        // Act
+        var response = await _client.GetAsync("/api/tasks?page=1&pageSize=2");
+
+        // Assert
+        response.EnsureSuccessStatusCode();
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.Contains("\"items\"", body);
+        Assert.Contains("\"totalCount\"", body);
+    }
 }
