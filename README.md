@@ -1,313 +1,272 @@
 # Ezra Todo App
 
-A production-ready task management application built with .NET Core and React.
+A production-ready task management application built as a full-stack take-home assessment. Demonstrates clean architecture, TDD, and production-grade engineering practices across a .NET 10 API and React frontend.
 
-## Project Status
-
-### ✅ Completed
-- Git repository initialized
-- Project structure created
-- Frontend setup complete (React + TypeScript + Vite + Tailwind CSS)
-- Frontend builds successfully
-
-### ⏳ Pending
-- .NET 8 SDK installation (required for backend)
-- Backend API implementation
-- Database setup (SQLite with EF Core)
-- Full integration between frontend and backend
+---
 
 ## Tech Stack
 
+| Layer | Technology |
+|-------|-----------|
+| Backend | .NET 10 / ASP.NET Core |
+| Database | SQLite + Entity Framework Core |
+| Validation | FluentValidation (server) · Zod (client) |
+| Logging | Serilog (file + console, daily rolling) |
+| Testing (backend) | xUnit + Moq · WebApplicationFactory |
+| Frontend | React 18 + TypeScript + Vite |
+| Styling | Tailwind CSS (Editorial Precision design system) |
+| State / data | TanStack Query (React Query) |
+| Testing (frontend) | Vitest + React Testing Library |
+
+---
+
+## Quick Start
+
+### Prerequisites
+
+- **Node.js** v18+ (tested on v24)
+- **.NET 10 SDK** — [download](https://dotnet.microsoft.com/download/dotnet/10.0)
+
+Verify:
+```bash
+node --version      # v18+
+dotnet --version    # 10.x.x
+```
+
+### 1 — Backend
+
+```bash
+cd backend
+
+# Restore dependencies
+dotnet restore
+
+# Apply database migrations (creates todoapp.db)
+dotnet ef database update --project TodoApi
+
+# Start the API
+dotnet run --project TodoApi
+```
+
+API runs at **http://localhost:5000**
+
+### 2 — Frontend
+
+```bash
+cd frontend
+
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+```
+
+App runs at **http://localhost:3000** and proxies `/api` to the backend.
+
+---
+
+## Running Tests
+
 ### Backend
-- **Framework**: .NET Core 8
-- **Database**: SQLite with Entity Framework Core
-- **Validation**: FluentValidation
-- **Logging**: Serilog
-- **API Documentation**: Swagger/OpenAPI
-- **Testing**: xUnit, Moq
+
+```bash
+cd backend
+
+# Run all tests
+dotnet test
+
+# Run with coverage report (excludes auto-generated migrations)
+dotnet test --collect:"XPlat Code Coverage" --settings coverlet.runsettings
+```
+
+Current coverage: **98.4% lines · 92.4% branches**
 
 ### Frontend
-- **Framework**: React 18
-- **Language**: TypeScript
-- **Build Tool**: Vite
-- **Styling**: Tailwind CSS
-- **HTTP Client**: Axios
-- **Form Handling**: React Hook Form + Zod
-- **Testing**: Vitest + React Testing Library
 
-## Prerequisites
-
-### Required
-- **Node.js**: v18+ (✅ Installed: v24.1.0)
-- **.NET 8 SDK**: Not yet installed
-
-### Install .NET 8 SDK
-
-**macOS:**
 ```bash
-# Download and install from official site
-https://dotnet.microsoft.com/download/dotnet/8.0
+cd frontend
 
-# Or via Homebrew
-brew install --cask dotnet-sdk
+# Run tests (single pass)
+npm run test -- --run
+
+# Run with coverage
+npm run coverage
 ```
 
-**Verify installation:**
-```bash
-dotnet --version
-# Should show: 8.x.x
-```
+Current coverage: **95.8% lines · 95.1% branches**
+
+---
 
 ## Project Structure
 
 ```
 ezra-todo/
 ├── backend/
-│   ├── TodoApi/                    # Main API project (pending .NET install)
-│   │   ├── Controllers/
-│   │   ├── Models/
-│   │   ├── Services/
-│   │   ├── Data/
-│   │   ├── DTOs/
-│   │   ├── Middleware/
-│   │   └── Program.cs
-│   └── TodoApi.Tests/              # Test project
+│   ├── TodoApi/
+│   │   ├── Controllers/        # HTTP layer — thin, delegates to services
+│   │   ├── Services/           # Business logic, returns Result<T>
+│   │   ├── Data/               # EF Core DbContext + repository
+│   │   ├── Models/             # Domain entities (TodoTask)
+│   │   ├── DTOs/               # Immutable request/response records
+│   │   ├── Validators/         # FluentValidation validators
+│   │   ├── Migrations/         # EF Core migration history
+│   │   └── Program.cs          # App wiring (DI, middleware, CORS, rate limiting)
+│   ├── TodoApi.Tests/
+│   │   ├── Controllers/        # Integration tests (WebApplicationFactory + SQLite in-memory)
+│   │   ├── Services/           # Unit tests (Moq)
+│   │   ├── Data/               # Repository tests
+│   │   └── Integration/        # End-to-end HTTP pipeline tests
+│   └── coverlet.runsettings    # Coverage config (excludes migrations)
 ├── frontend/
-│   ├── src/
-│   │   ├── components/
-│   │   ├── services/
-│   │   ├── hooks/
-│   │   ├── types/
-│   │   ├── test/
-│   │   ├── App.tsx
-│   │   ├── main.tsx
-│   │   └── index.css
-│   ├── index.html
-│   ├── package.json
-│   ├── vite.config.ts
-│   ├── tsconfig.json
-│   ├── tailwind.config.js
-│   └── postcss.config.js
-├── .gitignore
-├── README.md
-└── IMPLEMENTATION_PLAN.md
+│   └── src/
+│       ├── components/         # TaskForm, TaskItem, TaskList
+│       ├── hooks/              # useTasks, useCreateTask, useUpdateTask, useDeleteTask
+│       ├── services/           # api.ts — typed fetch wrappers
+│       ├── types/              # Task, TaskStatus, TaskPriority
+│       └── test/               # Shared test utilities (renderWithProviders)
+└── docs/
+    ├── ADR-007-authentication-strategy.md
+    ├── COVERAGE_SUMMARY.md
+    ├── IMPLEMENTATION_PLAN.md
+    └── TEST-STRATEGY.md
 ```
 
-## Setup Instructions
+---
 
-### Frontend Setup
+## API Reference
 
-1. **Navigate to frontend directory:**
-   ```bash
-   cd frontend
-   ```
+Base URL: `http://localhost:5000/api`
 
-2. **Install dependencies** (already done):
-   ```bash
-   npm install
-   ```
-
-3. **Run development server:**
-   ```bash
-   npm run dev
-   ```
-   Frontend will be available at: http://localhost:3000
-
-4. **Build for production:**
-   ```bash
-   npm run build
-   ```
-
-5. **Run tests:**
-   ```bash
-   npm test
-   ```
-
-### Backend Setup (After .NET Installation)
-
-1. **Navigate to backend directory:**
-   ```bash
-   cd backend
-   ```
-
-2. **Create solution file and add projects:**
-   ```bash
-   dotnet new sln -n TodoApp
-   dotnet sln add TodoApi/TodoApi.csproj
-   dotnet sln add TodoApi.Tests/TodoApi.Tests.csproj
-   ```
-   This creates `TodoApp.sln` which allows you to build/test all projects with `dotnet test` or `dotnet build`.
-
-3. **Restore dependencies:**
-   ```bash
-   cd TodoApi
-   dotnet restore
-   ```
-
-4. **Create database migration:**
-   ```bash
-   dotnet ef migrations add InitialCreate
-   ```
-
-5. **Apply migration to create database:**
-   ```bash
-   dotnet ef database update
-   ```
-   This creates the `todoapp.db` SQLite database file with the Tasks table.
-
-6. **Run the API:**
-   ```bash
-   dotnet run
-   ```
-   API will be available at: http://localhost:5000
-
-7. **Run tests (from backend directory):**
-   ```bash
-   cd ..
-   dotnet test
-   ```
-   Or run tests for a specific project:
-   ```bash
-   dotnet test TodoApi.Tests/TodoApi.Tests.csproj
-   ```
-
-## Available Scripts
-
-### Frontend
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run preview` - Preview production build
-- `npm test` - Run tests in watch mode
-- `npm run coverage` - Generate test coverage report
-
-### Backend (after setup)
-- `dotnet run` - Start API server
-- `dotnet build` - Build the project
-- `dotnet test` - Run all tests
-- `dotnet ef migrations add <name>` - Create migration
-- `dotnet ef database update` - Apply migrations
-
-## Development Workflow
-
-This project follows **Test-Driven Development (TDD)**:
-
-1. Write a failing test
-2. Write minimal code to pass the test
-3. Refactor while keeping tests green
-4. Maintain 80%+ code coverage
-
-## API Endpoints (Planned)
-
-```
-GET    /api/tasks          - Get all tasks
-GET    /api/tasks/{id}     - Get task by ID
-POST   /api/tasks          - Create new task
-PUT    /api/tasks/{id}     - Update task
-DELETE /api/tasks/{id}     - Delete task (soft delete)
-PATCH  /api/tasks/{id}/status - Update task status
-GET    /health             - Health check
-```
+| Method | Endpoint | Description | Success |
+|--------|----------|-------------|---------|
+| GET | `/tasks` | List all tasks | 200 |
+| GET | `/tasks?page=1&pageSize=20` | Paginated list | 200 |
+| GET | `/tasks/{id}` | Get task by ID | 200 / 404 |
+| POST | `/tasks` | Create task | 201 / 400 |
+| PUT | `/tasks/{id}` | Update task (partial — null fields preserved) | 200 / 400 / 404 |
+| PATCH | `/tasks/{id}/status` | Update status only | 200 / 400 / 404 |
+| DELETE | `/tasks/{id}` | Soft delete | 204 / 404 |
 
 ### Validation Rules
 
-Enforced server-side in `TaskService` (returning `Result<T>` failures as HTTP 400) and mirrored client-side in `TaskForm` via Zod:
+| Field | Rule |
+|-------|------|
+| `title` | Required, 1–200 chars |
+| `description` | Optional, max 1000 chars |
+| `priority` | `Low` \| `Medium` \| `High` |
+| `status` | `Todo` \| `InProgress` \| `Done` |
+| `dueDate` | Optional; must be a future date |
 
-| Field | Constraint | On violation |
-|-------|-----------|--------------|
-| Title | Required, non-empty, max 200 chars | 400 — "Title is required" / "Title must not exceed 200 characters" |
-| Description | Optional, max 1000 chars | 400 — "Description must not exceed 1000 characters" |
-| Status | Valid enum: `Todo`, `InProgress`, `Done` | 400 — "Invalid status value" |
-| Priority | Valid enum: `Low`, `Medium`, `High` | 400 — "Invalid priority value" |
-| DueDate | Optional; must be a future date (client-side) | Form error before submission |
-| CreatedAt | Set automatically (UTC) on create | — |
+Errors return RFC 7807 Problem Details:
+```json
+{
+  "errors": {
+    "title": ["Title is required"]
+  }
+}
+```
 
-Partial updates (PUT with null fields) preserve existing values — required fields can't be wiped. On create, `Status` defaults to `Todo`.
+### Example: Create a task
 
-## Features
+```bash
+curl -X POST http://localhost:5000/api/tasks \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Write integration tests",
+    "description": "Cover all controller actions",
+    "priority": "High",
+    "dueDate": "2026-12-31T00:00:00Z"
+  }'
+```
 
-### Core Features
-- ✅ Create tasks with title, description, priority, due date
-- ✅ Update task details
-- ✅ Mark tasks as Todo/InProgress/Done
-- ✅ Delete tasks (soft delete for recovery)
-- ✅ Filter tasks by status and priority
-- ✅ Responsive UI (mobile, tablet, desktop)
-
-### Production Features
-- ✅ Input validation (client and server)
-- ✅ Structured error handling
-- ✅ Logging (Serilog)
-- ✅ API documentation (Swagger)
-- ✅ Security (XSS prevention, SQL injection prevention, CORS)
-- ✅ Health check endpoint
-- ✅ Comprehensive testing (80%+ coverage)
-- ✅ Accessibility (WCAG compliant)
+---
 
 ## Architecture Decisions
 
-### Repository Pattern
-Separates data access logic from business logic, making the code more testable and maintainable.
+### Result\<T\> pattern
+Services return `Result<T>` (success/error/statusCode) instead of throwing exceptions for business failures. Controllers map results directly to HTTP responses — no try/catch at the controller layer.
 
-### DTOs (Data Transfer Objects)
-Decouples API contracts from domain models, providing better control over what's exposed and easier versioning.
+### Repository pattern
+`ITaskRepository` abstracts EF Core. Services depend on the interface, making unit tests fast (Moq) and integration tests real (SQLite in-memory via `WebApplicationFactory`).
 
-### Result Type Pattern
-Returns `Result<T>` from services for explicit error handling without exceptions for business logic failures.
+### Soft delete
+`IsDeleted` flag + EF Core global query filter (`HasQueryFilter`). Deleted tasks are invisible to all queries by default; no special handling needed in application code.
 
-### Soft Delete
-Uses `IsDeleted` flag instead of hard deletes, allowing recovery and maintaining audit trails.
+### Enums as strings
+Status and Priority stored as `TEXT` in SQLite (`HasConversion<string>()`). Readable in the database, safe across migrations, no integer-to-name mapping needed.
 
-### SQLite Database
-Provides persistence while remaining simple for development and demo purposes.
+### Concurrent paginated queries
+`GetPagedAsync` fires `CountAsync` and `ToListAsync` concurrently via `Task.WhenAll`, halving latency on paginated requests.
 
-## Testing Strategy
+### Single validation boundary
+FluentValidation runs at the controller boundary. Services contain defence-in-depth guards for critical fields (title empty/too long) but do not duplicate enum validation — that's FluentValidation's job.
 
-### Backend
-- Unit tests for services (mock repository)
-- Unit tests for validation
-- Integration tests for API endpoints
-- Integration tests for repository (in-memory DB)
-- Target: 80%+ coverage
+Full ADRs: see [`docs/`](docs/)
+
+---
+
+## Coverage Gates
+
+A pre-commit hook in `~/.claude/settings.json` blocks `gh pr create` until both test suites pass and coverage thresholds are met:
+
+| Suite | Lines | Branches |
+|-------|-------|---------|
+| Backend | ≥ 90% | ≥ 85% |
+| Frontend | ≥ 90% | ≥ 85% |
+
+---
+
+## Environment Variables
 
 ### Frontend
-- Component unit tests (React Testing Library)
-- Hook tests
-- Integration tests for key user flows
-- Mock API responses
-- Target: 80%+ coverage
 
-## Security Considerations
+Create `frontend/.env.local`:
+```bash
+VITE_API_URL=http://localhost:5000/api
+```
 
-- **Input Validation**: Client and server-side validation using Zod and FluentValidation
-- **SQL Injection**: Prevented via EF Core parameterized queries
-- **XSS**: Prevented via React's automatic escaping
-- **CORS**: Configured for frontend origin
-- **Rate Limiting**: Basic rate limiting on API endpoints
-- **No Secrets in Code**: Environment variables for configuration
+The default is `http://localhost:5000/api` so this is only needed to override.
+
+### Backend
+
+Connection string is in `appsettings.json`. Override for production via environment variable:
+```bash
+ConnectionStrings__DefaultConnection="Data Source=/data/todoapp.db"
+```
+
+---
+
+## Database Migrations
+
+```bash
+cd backend
+
+# Create a new migration after model changes
+dotnet ef migrations add <MigrationName> --project TodoApi
+
+# Apply pending migrations
+dotnet ef database update --project TodoApi
+
+# Roll back last migration (if not yet applied)
+dotnet ef migrations remove --project TodoApi
+```
+
+The database file (`todoapp.db`) is gitignored. Migrations are version-controlled.
+
+---
 
 ## Future Enhancements
 
-- Authentication & authorization (JWT)
-- User accounts and multi-user support
-- Task assignments and collaboration
-- Task categories/tags
-- Real-time updates (SignalR)
-- File attachments
-- Email notifications
-- Advanced search and filtering
-- Drag & drop task reordering
-- Dark mode
-- PWA for offline support
+- JWT authentication (see [ADR-007](docs/ADR-007-authentication-strategy.md))
+- Real-time updates via SignalR
+- Task categories and tags
+- Docker containerisation
+- CI/CD pipeline (GitHub Actions)
+- PostgreSQL for production deployments
 
-## Documentation
-
-- **Implementation Plan**: See [IMPLEMENTATION_PLAN.md](/Users/manasilonkar/JobSearch/coding/ezra-todo/IMPLEMENTATION_PLAN.md) for detailed implementation strategy
-- **API Documentation**: Available at `/swagger` when backend is running
+---
 
 ## License
 
 ISC
-
-## Author
-
-Built for Ezra Full Stack Developer Take-Home Assessment
