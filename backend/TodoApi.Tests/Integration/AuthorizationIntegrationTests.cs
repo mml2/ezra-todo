@@ -36,8 +36,10 @@ public class AuthorizationIntegrationTests : IClassFixture<WebApplicationFactory
     private readonly HttpClient _client;
     private readonly DbConnection _connection;
 
-    // JWT config from appsettings.json
-    private const string JwtKey = "your-production-key-at-least-32-bytes-long-secure";
+    // JWT config pinned by this fixture so hand-forged tokens use the same key the
+    // app validates against, independent of appsettings (the signing key is not
+    // committed in appsettings.json — see Program.cs fail-fast).
+    private const string JwtKey = "integration-test-signing-key-at-least-32-bytes-long";
     private const string JwtIssuer = "ezra-todo";
     private const string JwtAudience = "ezra-todo-client";
 
@@ -48,6 +50,14 @@ public class AuthorizationIntegrationTests : IClassFixture<WebApplicationFactory
 
         _factory = factory.WithWebHostBuilder(builder =>
         {
+            // Pin JWT config at host level (wins over appsettings) so the token the
+            // app issues at login and the key the middleware validates with always
+            // agree, and so hand-forged tokens use the same key.
+            builder.UseSetting("Jwt:Key", JwtKey);
+            builder.UseSetting("Jwt:Issuer", JwtIssuer);
+            builder.UseSetting("Jwt:Audience", JwtAudience);
+            builder.UseSetting("Jwt:ExpiryMinutes", "60");
+
             builder.ConfigureServices(services =>
             {
                 var descriptor = services.SingleOrDefault(
