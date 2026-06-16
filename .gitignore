@@ -66,6 +66,8 @@ coverage/
 *.cover
 .nyc_output
 .coverage
+TestResults/
+CoverageReport/
 
 # OS
 Thumbs.db
@@ -88,3 +90,7 @@ unpacked/
 .codex/
 .dolt/
 .beads-credential-key
+CLAUDE.md
+
+# Original assignment brief — kept locally, not shipped with the deliverable
+Ezra Take-Home.docx
