@@ -372,6 +372,12 @@ Status and Priority stored as `TEXT` in SQLite (`HasConversion<string>()`). Read
 ### Single validation boundary
 FluentValidation runs at the controller boundary. Services contain defence-in-depth guards for critical fields (title empty/too long) but do not duplicate enum validation — that's FluentValidation's job.
 
+### Caching deliberately deferred
+Redis caching of per-user tasks was considered and **intentionally not built**. The read path is already fast for this workload (indexed reads <10ms, list ~50ms over a handful of rows), stateless JWT auth has no login session to warm a cache against, and a partial-window write-through cache would add dual-write consistency risk with no measured bottleneck to justify it. The "when and how we'd add it correctly" path (cache-aside + short TTL + invalidate-on-write, behind an `ICacheService`) is captured in the ADR. See [ADR-008](docs/ADR-008-caching-strategy.md).
+
+### Productionization roadmap
+The hardening steps to take this from a reference implementation to a real deployment — DB migration off SQLite, secrets manager for the JWT key, httpOnly-cookie/BFF token storage, token revocation/refresh, OpenTelemetry observability, rate limiting, HTTPS/HSTS, and horizontal scaling — are documented with their current state and recommended change in [`docs/PRODUCTIONIZATION.md`](docs/PRODUCTIONIZATION.md). (CI/CD is intentionally out of scope.)
+
 Full ADRs: see [`docs/`](docs/)
 
 ---
