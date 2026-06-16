@@ -126,10 +126,7 @@ ezra-todo/
 │       ├── types/              # Task, TaskStatus, TaskPriority
 │       └── test/               # Shared test utilities (renderWithProviders)
 └── docs/
-    ├── ADR-007-authentication-strategy.md
-    ├── COVERAGE_SUMMARY.md
-    ├── IMPLEMENTATION_PLAN.md
-    └── TEST-STRATEGY.md
+    └── ADR-007-authentication-strategy.md
 ```
 
 ---

@@ -33,6 +33,19 @@ builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<PasswordHasher<User>>();
 
+// Fail fast if the JWT signing key is missing or too weak. The key is never
+// committed in the base appsettings — it comes from appsettings.Development.json
+// (dev) or a secrets manager / environment variable (production). HMAC-SHA256
+// requires at least 256 bits (32 bytes) of key material to be secure.
+var jwtKey = builder.Configuration["Jwt:Key"];
+if (string.IsNullOrEmpty(jwtKey) || Encoding.UTF8.GetByteCount(jwtKey) < 32)
+{
+    throw new InvalidOperationException(
+        "Jwt:Key is missing or shorter than 32 bytes. Configure a strong signing key " +
+        "via appsettings.Development.json (development) or an environment variable / " +
+        "secrets manager (production).");
+}
+
 // Add JWT bearer authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -47,7 +60,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
             IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(jwt["Key"]!)),
+                Encoding.UTF8.GetBytes(jwtKey)),
             ClockSkew = TimeSpan.Zero
         };
     });
@@ -64,7 +77,13 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
     });
 
-// TODO: Add Swagger/OpenAPI with .NET 10 compatible package
+// Health checks (liveness). A DB-readiness probe is noted as a production
+// enhancement in docs/PRODUCTIONIZATION.md.
+builder.Services.AddHealthChecks();
+
+// The API contract is the hand-written spec at backend/openapi.yaml (consumed by
+// clients / served as static content). A runtime Swagger UI is intentionally not
+// wired up — see the README "API Reference" section.
 
 // Add rate limiting
 builder.Services.AddRateLimiter(options =>
@@ -129,6 +148,9 @@ app.UseAuthorization();
 app.UseRateLimiter();
 
 app.MapControllers().RequireRateLimiting("api");
+
+// Anonymous, unthrottled health endpoint for load balancers / orchestrators
+app.MapHealthChecks("/health").AllowAnonymous();
 
 app.Map("/error", (HttpContext context) =>
     Results.Problem(statusCode: context.Response.StatusCode));

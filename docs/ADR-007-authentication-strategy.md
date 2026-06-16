@@ -104,6 +104,7 @@ Requirement #9 literally specified **403**. We deviate to **404**: returning 403
 ### Additional scenarios covered (beyond the 9 requirements)
 
 - **No user enumeration on login:** wrong password and unknown username both return an identical `401` message.
+  - *Known limitation (deferred):* the unknown-username path returns before `VerifyHashedPassword` runs, while the wrong-password path pays the PBKDF2 cost. That response-latency difference is a timing side-channel that could still enumerate valid usernames. The mitigation is to verify the supplied password against a fixed dummy hash on the not-found path so both branches take the same time. Left as a documented follow-up: the message-level signal is already removed, and the residual timing signal is low-value against the seeded single-user demo.
 - **Owner stamped server-side:** `CreateTask` sets `UserId` from the token, never from the request body.
 - **Anonymous endpoints:** `/health` and `POST /api/auth/login` stay `[AllowAnonymous]`; everything else requires auth.
 - **Signing key from config**, never hardcoded; README documents the production secrets-manager path.
