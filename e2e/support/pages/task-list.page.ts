@@ -9,6 +9,7 @@ export class TaskListPage {
   readonly heading: Locator;
   readonly logoutButton: Locator;
   readonly newTaskButton: Locator;
+  readonly header: Locator;
   readonly statusFilter: Locator;
   readonly priorityFilter: Locator;
   readonly prevButton: Locator;
@@ -19,6 +20,7 @@ export class TaskListPage {
     this.heading = page.getByRole('heading', { name: 'Task Manager' });
     this.logoutButton = page.getByRole('button', { name: 'Logout' });
     this.newTaskButton = page.getByRole('button', { name: '+ New Task' });
+    this.header = page.locator('header');
     // The two filter <select>s, in DOM order: status then priority.
     this.statusFilter = page.locator('select.select-editorial').nth(0);
     this.priorityFilter = page.locator('select.select-editorial').nth(1);
@@ -28,6 +30,11 @@ export class TaskListPage {
 
   async goto(): Promise<void> {
     await this.page.goto('/');
+  }
+
+  /** The logged-in username shown in the header. */
+  usernameInHeader(username: string): Locator {
+    return this.header.getByText(username, { exact: true });
   }
 
   /** A task card located by its title text. */
