@@ -37,6 +37,10 @@ export default defineConfig({
       env: {
         ASPNETCORE_ENVIRONMENT: 'Development',
         ASPNETCORE_URLS: BACKEND_URL,
+        // The full suite issues >100 API calls within one rate-limit window
+        // (each test logs in + seeds/cleans data). Raise the limit for E2E only;
+        // production keeps the 100/min default.
+        RateLimiting__PermitLimit: '100000',
       },
     },
     {

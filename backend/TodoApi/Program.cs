@@ -85,13 +85,16 @@ builder.Services.AddHealthChecks();
 // clients / served as static content). A runtime Swagger UI is intentionally not
 // wired up — see the README "API Reference" section.
 
-// Add rate limiting
+// Add rate limiting. PermitLimit defaults to 100/min but is configurable
+// (RateLimiting:PermitLimit) so the E2E suite can raise it for its high-volume
+// single-window test runs without weakening the production default.
+var permitLimit = builder.Configuration.GetValue<int?>("RateLimiting:PermitLimit") ?? 100;
 builder.Services.AddRateLimiter(options =>
 {
     options.AddFixedWindowLimiter("api", limiterOptions =>
     {
         limiterOptions.Window = TimeSpan.FromMinutes(1);
-        limiterOptions.PermitLimit = 100;
+        limiterOptions.PermitLimit = permitLimit;
         limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
         limiterOptions.QueueLimit = 0;
     });
