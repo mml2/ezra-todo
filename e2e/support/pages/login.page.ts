@@ -10,7 +10,9 @@ export class LoginPage {
     this.page = page;
     this.username = page.locator('#username');
     this.password = page.locator('#password');
-    this.submit = page.getByRole('button', { name: 'Sign in' });
+    // Match by type, not label: the button text changes to "Signing in..."
+    // while a login request is in flight.
+    this.submit = page.locator('button[type="submit"]');
   }
 
   async goto(): Promise<void> {
@@ -27,5 +29,10 @@ export class LoginPage {
   /** The generic 401 / submit-level error banner. */
   submitError(): Locator {
     return this.page.getByText('Invalid username or password');
+  }
+
+  /** A client-side (Zod) field error message, e.g. "Username is required". */
+  fieldError(message: string): Locator {
+    return this.page.getByText(message);
   }
 }
