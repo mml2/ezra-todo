@@ -58,6 +58,26 @@ export class TaskListPage {
     return card.locator('select').first();
   }
 
+  /** The in-card status <select> in the actions column (drives PATCH status). */
+  cardStatusSelect(card: Locator): Locator {
+    return card.locator('select').nth(1);
+  }
+
+  /** The card's "Edit" button (switches the card into inline edit mode). */
+  cardEditButton(card: Locator): Locator {
+    return card.getByRole('button', { name: 'Edit' });
+  }
+
+  /** The priority accent bar; its background colour reflects the priority. */
+  cardAccentBar(card: Locator): Locator {
+    return card.locator('div.absolute.top-0.left-0');
+  }
+
+  /** The "Overdue" badge, shown only for a past-due task that isn't Done. */
+  cardOverdueBadge(card: Locator): Locator {
+    return card.getByText('Overdue', { exact: true });
+  }
+
   async openCreateForm(): Promise<void> {
     await this.newTaskButton.click();
   }
