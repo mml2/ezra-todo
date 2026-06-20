@@ -123,6 +123,17 @@ export class ApiClient {
     });
   }
 
+  /**
+   * GET a single task by id, returning only the HTTP status code. Used to prove
+   * a soft-deleted task is excluded (404) without throwing on the not-found path.
+   */
+  async getTaskStatus(token: string, id: number): Promise<number> {
+    const res = await this.ctx.get(`tasks/${id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.status();
+  }
+
   /** Remove every task owned by the given user — used to reset state between tests. */
   async deleteAllTasks(token: string): Promise<void> {
     const tasks = await this.listAllTasks(token);
