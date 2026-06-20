@@ -68,6 +68,25 @@ export class ApiClient {
     return (await res.json()) as TaskResponse;
   }
 
+  /**
+   * Set a task's status. The API only accepts status via PATCH; create always
+   * defaults to Todo, so filter tests use this to seed InProgress / Done tasks.
+   */
+  async updateTaskStatus(
+    token: string,
+    id: number,
+    status: 'Todo' | 'InProgress' | 'Done',
+  ): Promise<TaskResponse> {
+    const res = await this.ctx.patch(`tasks/${id}/status`, {
+      headers: { Authorization: `Bearer ${token}` },
+      data: { status },
+    });
+    if (!res.ok()) {
+      throw new Error(`updateTaskStatus failed: ${res.status()} ${await res.text()}`);
+    }
+    return (await res.json()) as TaskResponse;
+  }
+
   async listAllTasks(token: string): Promise<TaskResponse[]> {
     const res = await this.ctx.get('tasks', {
       headers: { Authorization: `Bearer ${token}` },
