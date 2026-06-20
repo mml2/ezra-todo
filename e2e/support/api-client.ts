@@ -69,6 +69,26 @@ export class ApiClient {
   }
 
   /**
+   * Full update via PUT /tasks/{id}. Unlike create, the update validator has no
+   * future-date rule, so this is the only way to seed an overdue task (set a
+   * past dueDate on an already-created task).
+   */
+  async updateTask(
+    token: string,
+    id: number,
+    input: Partial<CreateTaskInput> & { dueDate?: string },
+  ): Promise<TaskResponse> {
+    const res = await this.ctx.put(`tasks/${id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+      data: input,
+    });
+    if (!res.ok()) {
+      throw new Error(`updateTask failed: ${res.status()} ${await res.text()}`);
+    }
+    return (await res.json()) as TaskResponse;
+  }
+
+  /**
    * Set a task's status. The API only accepts status via PATCH; create always
    * defaults to Todo, so filter tests use this to seed InProgress / Done tasks.
    */
