@@ -69,6 +69,43 @@ export class ApiClient {
   }
 
   /**
+   * Create `count` tasks for a user with sequential titles ("<prefix> NNN",
+   * zero-padded so list order is unambiguous). Used to seed past one page (>20).
+   */
+  async seedTasks(
+    token: string,
+    count: number,
+    prefix = 'Task',
+    priority: 'Low' | 'Medium' | 'High' = 'Medium',
+  ): Promise<void> {
+    for (let i = 1; i <= count; i++) {
+      const n = String(i).padStart(3, '0');
+      await this.createTask(token, { title: `${prefix} ${n}`, priority });
+    }
+  }
+
+  /** PUT /tasks/{id}, returning only the HTTP status (for cross-user 404 checks). */
+  async putTaskStatus(
+    token: string,
+    id: number,
+    input: Partial<CreateTaskInput>,
+  ): Promise<number> {
+    const res = await this.ctx.put(`tasks/${id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+      data: input,
+    });
+    return res.status();
+  }
+
+  /** DELETE /tasks/{id}, returning only the HTTP status (for cross-user 404 checks). */
+  async deleteTaskStatus(token: string, id: number): Promise<number> {
+    const res = await this.ctx.delete(`tasks/${id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.status();
+  }
+
+  /**
    * Full update via PUT /tasks/{id}. Unlike create, the update validator has no
    * future-date rule, so this is the only way to seed an overdue task (set a
    * past dueDate on an already-created task).
