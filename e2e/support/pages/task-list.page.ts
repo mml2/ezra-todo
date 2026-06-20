@@ -68,6 +68,11 @@ export class TaskListPage {
     return card.getByRole('button', { name: 'Edit' });
   }
 
+  /** The card's "Delete" button (prompts a confirm() dialog). */
+  cardDeleteButton(card: Locator): Locator {
+    return card.getByRole('button', { name: 'Delete' });
+  }
+
   /** The priority accent bar; its background colour reflects the priority. */
   cardAccentBar(card: Locator): Locator {
     return card.locator('div.absolute.top-0.left-0');
