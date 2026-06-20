@@ -109,4 +109,9 @@ export class TaskListPage {
   emptyState(): Locator {
     return this.page.getByText(/Your task list is empty|No tasks match your filters/);
   }
+
+  /** The pagination bar's "Page X of Y (N total)" text container. */
+  pageIndicator(): Locator {
+    return this.page.locator('.editorial-card', { hasText: /Page \d+ of \d+/ });
+  }
 }

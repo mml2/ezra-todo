@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../context/AuthContext';
 import { useTasks, useTasksPaged } from '../hooks/useTasks';
 import TaskItem from './TaskItem';
@@ -8,6 +9,7 @@ import { TaskStatus, TaskPriority } from '../types/task';
 
 export default function TaskList() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user, logout } = useAuth();
   const [page, setPage] = useState(1);
   const [showForm, setShowForm] = useState(false);
@@ -16,6 +18,9 @@ export default function TaskList() {
 
   const handleLogout = () => {
     logout();
+    // Drop cached task data so the next user doesn't briefly see the previous
+    // user's tasks (queries have a 30s staleTime and aren't user-scoped).
+    queryClient.clear();
     navigate('/login');
   };
 
