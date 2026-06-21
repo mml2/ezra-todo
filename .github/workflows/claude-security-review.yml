@@ -1,0 +1,70 @@
+name: Claude Security Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review, reopened]
+
+jobs:
+  claude-security-review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: read
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Run Claude Security Review
+        id: claude-security-review
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            You are a senior security engineer reviewing the changes in
+            ${{ github.repository }} pull request #${{ github.event.pull_request.number }}.
+
+            Review ONLY the diff for this PR (the changed lines and the functions
+            that enclose them). Do not audit pre-existing code unrelated to the diff.
+
+            Report ONLY high-confidence, concretely exploitable security
+            vulnerabilities introduced by this PR. Examine these categories:
+              - Injection: SQL/NoSQL injection, command injection, path traversal,
+                template/XXE injection.
+              - Authentication & authorization: auth bypass, privilege escalation,
+                broken object-level authorization (e.g. one user reaching another
+                user's data), session/JWT flaws (signature, expiry, algorithm,
+                claim trust).
+              - Secrets & crypto: hardcoded credentials/tokens, weak or misused
+                crypto, improper key handling, predictable randomness.
+              - Data exposure: sensitive data (secrets, passwords, PII) in logs,
+                responses, or error messages; user-enumeration leaks.
+
+            This app uses JWT bearer auth with per-user task isolation, so pay
+            special attention to: tasks/records scoped by the caller's identity
+            (not a client-supplied id), 404-vs-403 behavior that could leak record
+            existence, and the owner being stamped from the token rather than the
+            request body.
+
+            Rules:
+              - Only flag a finding if you are >80% confident it is real and
+                exploitable. Prefer missing a theoretical issue over a false positive.
+              - Do NOT report: denial-of-service / resource exhaustion, rate
+                limiting, generic style or quality issues, outdated dependencies,
+                or findings in test-only files.
+              - React/TSX is XSS-safe by default — only flag XSS where
+                dangerouslySetInnerHTML or equivalent unsafe APIs are used.
+              - Client-side TS/JS is untrusted; missing checks there are not
+                vulnerabilities (the backend is responsible for validation/authz).
+
+            For each finding give: file:line, severity (HIGH/MEDIUM), category,
+            a one-line description, a concrete exploit scenario, and a fix
+            recommendation. If you find no high-confidence issues, say so
+            explicitly. Post your review as a PR comment.
+
+          # Allow Claude to post the security review back to the PR.
+          claude_args: '--allowed-tools "Bash(gh pr comment:*)" "Bash(gh pr view:*)" "Bash(gh pr diff:*)"'
