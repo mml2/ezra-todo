@@ -51,7 +51,7 @@ test.describe('Create task & validation', () => {
     const card = taskListPage.card(title);
     await expect(card).toBeVisible();
     await expect(taskListPage.cardStatusBadge(card)).toContainText('To Do');
-    await expect(taskListPage.cardPrioritySelect(card)).toHaveValue('Medium');
+    await expect(taskListPage.cardPriorityPill(card)).toHaveAttribute('data-priority', 'Medium');
   });
 
   test('3.3 empty title is blocked with a required error', async ({
@@ -149,7 +149,7 @@ test.describe('Create task & validation', () => {
     await taskFormPage.createSubmit().click();
 
     const card = taskListPage.card(title);
-    await expect(taskListPage.cardPrioritySelect(card)).toHaveValue('High');
+    await expect(taskListPage.cardPriorityPill(card)).toHaveAttribute('data-priority', 'High');
     // A freshly created task is always Todo -> "To Do" badge.
     await expect(taskListPage.cardStatusBadge(card)).toContainText('To Do');
   });

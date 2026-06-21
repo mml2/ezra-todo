@@ -7,13 +7,6 @@ import { test, expect, ALICE } from '../fixtures/test';
  * case exercises the full UI -> API -> DB path with no mocks.
  */
 
-/** Computed background colour of a priority accent bar (see TaskItem priorityColors). */
-const PRIORITY_RGB = {
-  Low: 'rgb(79, 115, 85)', // Paper priority ink #4f7355
-  Medium: 'rgb(138, 106, 22)', // Paper priority ink #8a6a16
-  High: 'rgb(162, 59, 45)', // Paper priority ink #a23b2d
-} as const;
-
 /** A YYYY-MM-DD date `days` from today, for the <input type="date"> field. */
 function dateOffset(days: number): string {
   const d = new Date();
@@ -76,10 +69,10 @@ test.describe('Edit task & status/priority updates', () => {
     const updated = taskListPage.card('Keep my fields');
     await expect(updated).toBeVisible();
     await expect(updated).toContainText('Untouched description');
-    await expect(taskListPage.cardPrioritySelect(updated)).toHaveValue('High');
+    await expect(taskListPage.cardPriorityPill(updated)).toHaveAttribute('data-priority', 'High');
   });
 
-  test('5.3 the status dropdown drives Todo -> InProgress -> Done and updates stats', async ({
+  test('5.3 clicking the status pill advances Todo -> Active -> Done and updates stats', async ({
     api,
     aliceToken,
     loginAs,
@@ -91,41 +84,43 @@ test.describe('Edit task & status/priority updates', () => {
     const card = taskListPage.card('Marching to done');
 
     await expect(taskListPage.statValue('To Do')).toHaveText('1');
+    await expect(taskListPage.cardStatusBadge(card)).toContainText('To Do');
 
-    await taskListPage.cardStatusSelect(card).selectOption({ label: 'In Progress' });
+    // First click: To Do -> Active.
+    await taskListPage.advanceStatus(card);
     await expect(taskListPage.cardStatusBadge(card)).toContainText('Active');
     await expect(taskListPage.statValue('Active')).toHaveText('1');
     await expect(taskListPage.statValue('To Do')).toHaveText('0');
 
-    await taskListPage.cardStatusSelect(card).selectOption({ label: 'Done' });
+    // Second click: Active -> Done.
+    await taskListPage.advanceStatus(card);
     await expect(taskListPage.cardStatusBadge(card)).toContainText('Done');
     await expect(taskListPage.statValue('Complete')).toHaveText('1');
     await expect(taskListPage.statValue('Active')).toHaveText('0');
   });
 
-  test('5.4 the inline priority select updates the accent bar colour', async ({
+  test('5.4 the priority pill is display-only and reflects an edit made via the form', async ({
     api,
     aliceToken,
     loginAs,
     taskListPage,
+    taskFormPage,
   }) => {
-    await api.createTask(aliceToken, { title: 'Accent shift', priority: 'Low' });
+    await api.createTask(aliceToken, { title: 'Priority shift', priority: 'Low' });
 
     await loginAs(ALICE);
-    const card = taskListPage.card('Accent shift');
+    const card = taskListPage.card('Priority shift');
 
-    await expect(taskListPage.cardAccentBar(card)).toHaveCSS(
-      'background-color',
-      PRIORITY_RGB.Low,
-    );
+    // The pill displays the current priority and is not an editable control.
+    await expect(taskListPage.cardPriorityPill(card)).toHaveAttribute('data-priority', 'Low');
+    await expect(card.locator('select')).toHaveCount(0);
 
-    await taskListPage.cardPrioritySelect(card).selectOption({ label: 'High' });
+    // Priority changes flow through the Edit form, then re-render the pill.
+    await taskListPage.cardEditButton(card).click();
+    await taskFormPage.priority.selectOption({ label: 'High Priority' });
+    await taskFormPage.updateSubmit().click();
 
-    await expect(taskListPage.cardPrioritySelect(card)).toHaveValue('High');
-    await expect(taskListPage.cardAccentBar(card)).toHaveCSS(
-      'background-color',
-      PRIORITY_RGB.High,
-    );
+    await expect(taskListPage.cardPriorityPill(card)).toHaveAttribute('data-priority', 'High');
   });
 
   test('5.5 editing the title to empty is rejected', async ({
@@ -192,7 +187,11 @@ test.describe('Edit task & status/priority updates', () => {
     const card = taskListPage.card('Overdue item');
     await expect(taskListPage.cardOverdueBadge(card)).toBeVisible();
 
-    await taskListPage.cardStatusSelect(card).selectOption({ label: 'Done' });
+    // Advance Todo -> Active -> Done via the status pill.
+    await taskListPage.advanceStatus(card);
+    await expect(taskListPage.cardStatusBadge(card)).toContainText('Active');
+    await taskListPage.advanceStatus(card);
+    await expect(taskListPage.cardStatusBadge(card)).toContainText('Done');
 
     await expect(taskListPage.cardOverdueBadge(card)).toHaveCount(0);
   });

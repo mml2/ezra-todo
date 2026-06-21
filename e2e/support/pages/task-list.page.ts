@@ -48,19 +48,22 @@ export class TaskListPage {
     return this.page.locator('.editorial-card', { hasText: title });
   }
 
-  /** The status badge ("To Do" / "Active" / "Done") within a task card. */
+  /** The clickable status pill ("To Do" / "Active" / "Done") within a task card. */
   cardStatusBadge(card: Locator): Locator {
-    return card.locator('.status-badge');
+    return card.getByRole('button', { name: /^(To Do|Active|Done)$/ });
   }
 
-  /** The in-card priority <select> (its value reflects the task's priority). */
-  cardPrioritySelect(card: Locator): Locator {
-    return card.locator('select').first();
+  /**
+   * Advance the card's status one step (To Do -> Active -> Done -> To Do) by
+   * clicking the status pill.
+   */
+  async advanceStatus(card: Locator): Promise<void> {
+    await this.cardStatusBadge(card).click();
   }
 
-  /** The in-card status <select> in the actions column (drives PATCH status). */
-  cardStatusSelect(card: Locator): Locator {
-    return card.locator('select').nth(1);
+  /** The static priority pill; its data-priority attribute reflects the priority. */
+  cardPriorityPill(card: Locator): Locator {
+    return card.locator('[data-priority]');
   }
 
   /** The card's "Edit" button (switches the card into inline edit mode). */
@@ -71,11 +74,6 @@ export class TaskListPage {
   /** The card's "Delete" button (prompts a confirm() dialog). */
   cardDeleteButton(card: Locator): Locator {
     return card.getByRole('button', { name: 'Delete' });
-  }
-
-  /** The priority accent bar; its background colour reflects the priority. */
-  cardAccentBar(card: Locator): Locator {
-    return card.locator('div.absolute.top-0.left-0');
   }
 
   /** The "Overdue" badge, shown only for a past-due task that isn't Done. */
