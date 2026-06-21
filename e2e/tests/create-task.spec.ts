@@ -124,15 +124,14 @@ test.describe('Create task & validation', () => {
     await expect(card).toContainText(formatCardDate(10));
   });
 
-  test('3.8 toggling the create form closed creates no task', async ({
+  test('3.8 cancelling the create form creates no task', async ({
     taskListPage,
     taskFormPage,
   }) => {
     await taskListPage.openCreateForm();
     await taskFormPage.title.fill('Abandoned draft');
-    // No onCancel is passed in create mode, so the header toggle (now "✕ Cancel")
-    // closes the form.
-    await taskListPage.cancelFormButton.click();
+    // The create form opens in a modal; its Cancel button closes it.
+    await taskFormPage.cancelButton().click();
 
     await expect(taskFormPage.title).toBeHidden();
     await expect(taskListPage.taskCards).toHaveCount(0);

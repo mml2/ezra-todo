@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTasks, useTasksPaged } from '../hooks/useTasks';
 import TaskItem from './TaskItem';
 import TaskForm from './TaskForm';
+import Modal from './Modal';
 import { TaskStatus, TaskPriority } from '../types/task';
 
 export default function TaskList() {
@@ -108,10 +109,10 @@ export default function TaskList() {
   ];
 
   return (
-    <div className="min-h-screen py-12 px-4 sm:px-6">
+    <div className="min-h-screen py-16 px-4 sm:px-6">
       <div className="max-w-[880px] mx-auto">
         {/* Header */}
-        <header className="mb-8 animate-slide-up">
+        <header className="mb-12 animate-slide-up">
           <div className="flex items-center justify-between gap-4">
             <div>
               <h1
@@ -143,7 +144,7 @@ export default function TaskList() {
 
         {/* Stat strip — one bordered card with hairline dividers */}
         <div
-          className="editorial-card mb-8 animate-slide-up stagger-1 flex divide-x"
+          className="editorial-card mb-12 animate-slide-up stagger-1 flex divide-x"
           style={{ borderColor: 'var(--color-mist)' }}
         >
           {statTiles.map((tile) => (
@@ -170,66 +171,70 @@ export default function TaskList() {
           ))}
         </div>
 
-        {/* Controls Bar */}
-        <div className="editorial-card p-6 mb-8 animate-slide-up stagger-2">
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="flex items-center gap-3 flex-1 flex-wrap">
-              <span style={{ fontFamily: 'var(--font-serif)', color: 'var(--color-ink)' }} className="text-sm font-semibold uppercase tracking-wide">
-                Filter
-              </span>
-
-              <select
-                value={filterStatus}
-                onChange={(e) => handleFilterChange('status', e.target.value)}
-                className="select-editorial"
-              >
-                <option value="All">All Status</option>
-                <option value={TaskStatus.Todo}>To Do</option>
-                <option value={TaskStatus.InProgress}>In Progress</option>
-                <option value={TaskStatus.Done}>Done</option>
-              </select>
-
-              <select
-                value={filterPriority}
-                onChange={(e) => handleFilterChange('priority', e.target.value)}
-                className="select-editorial"
-              >
-                <option value="All">All Priorities</option>
-                <option value={TaskPriority.Low}>Low</option>
-                <option value={TaskPriority.Medium}>Medium</option>
-                <option value={TaskPriority.High}>High</option>
-              </select>
-
-              {(filterStatus !== 'All' || filterPriority !== 'All') && (
-                <button
-                  onClick={() => {
-                    setPage(1);
-                    setFilterStatus('All');
-                    setFilterPriority('All');
-                  }}
-                  style={{ color: 'var(--color-amber)' }}
-                  className="text-sm font-semibold hover:underline transition-all uppercase tracking-wide"
-                >
-                  Clear
-                </button>
-              )}
-            </div>
-
-            <button
-              onClick={() => setShowForm(!showForm)}
-              className="btn-primary"
+        {/* Tasks heading row — filters + New Task share the row with the heading */}
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-6 animate-slide-up stagger-2">
+          <div className="flex items-baseline gap-3">
+            <h2
+              style={{ fontFamily: 'var(--font-serif)', color: 'var(--color-ink)' }}
+              className="text-xl font-bold"
             >
-              {showForm ? '✕ Cancel' : '+ New Task'}
+              Tasks
+            </h2>
+            <span style={{ color: 'var(--color-stone)' }} className="text-sm">
+              {stats.total} {stats.total === 1 ? 'task' : 'tasks'}
+            </span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <select
+              value={filterStatus}
+              onChange={(e) => handleFilterChange('status', e.target.value)}
+              className="select-editorial"
+            >
+              <option value="All">All Status</option>
+              <option value={TaskStatus.Todo}>To Do</option>
+              <option value={TaskStatus.InProgress}>In Progress</option>
+              <option value={TaskStatus.Done}>Done</option>
+            </select>
+
+            <select
+              value={filterPriority}
+              onChange={(e) => handleFilterChange('priority', e.target.value)}
+              className="select-editorial"
+            >
+              <option value="All">All Priorities</option>
+              <option value={TaskPriority.Low}>Low</option>
+              <option value={TaskPriority.Medium}>Medium</option>
+              <option value={TaskPriority.High}>High</option>
+            </select>
+
+            {(filterStatus !== 'All' || filterPriority !== 'All') && (
+              <button
+                onClick={() => {
+                  setPage(1);
+                  setFilterStatus('All');
+                  setFilterPriority('All');
+                }}
+                style={{ color: 'var(--color-amber)' }}
+                className="text-sm font-semibold hover:underline transition-all uppercase tracking-wide"
+              >
+                Clear
+              </button>
+            )}
+
+            <button onClick={() => setShowForm(true)} className="btn-primary">
+              + New Task
             </button>
           </div>
         </div>
 
-        {/* Create Form */}
-        {showForm && (
-          <div className="editorial-card accent-border p-8 mb-8 animate-scale-in">
-            <TaskForm onSuccess={() => setShowForm(false)} />
-          </div>
-        )}
+        {/* Create Form — modal popup */}
+        <Modal isOpen={showForm} onClose={() => setShowForm(false)}>
+          <TaskForm
+            onSuccess={() => setShowForm(false)}
+            onCancel={() => setShowForm(false)}
+          />
+        </Modal>
 
         {/* Task Grid */}
         {filteredTasks && filteredTasks.length > 0 ? (
