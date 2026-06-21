@@ -107,7 +107,7 @@ export default function TaskForm({ task, onSuccess, onCancel }: TaskFormProps) {
       <div className="border-b border-[var(--color-mist)] pb-4">
         <h3
           style={{ fontFamily: 'var(--font-serif)', color: 'var(--color-ink)' }}
-          className="text-3xl font-bold"
+          className="text-xl font-bold"
         >
           {task ? 'Edit Task' : 'New Task'}
         </h3>
@@ -278,7 +278,7 @@ export default function TaskForm({ task, onSuccess, onCancel }: TaskFormProps) {
             type="button"
             onClick={onCancel}
             disabled={isSubmitting}
-            className="flex-1 px-6 py-3 text-sm font-semibold uppercase tracking-wide rounded-sm transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 px-6 py-3 text-sm font-semibold rounded-sm transition-colors hover:bg-[var(--color-line-strong)] disabled:opacity-50 disabled:cursor-not-allowed"
             style={{
               background: 'var(--color-mist)',
               color: 'var(--color-stone)',
