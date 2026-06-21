@@ -56,7 +56,7 @@ export default function TaskList() {
             Connection Error
           </h2>
           <p style={{ color: 'var(--color-stone)' }} className="text-sm leading-relaxed">
-            Unable to connect to the backend server. Please ensure the API is running at <code className="px-2 py-1 bg-[var(--color-mist)] rounded">localhost:5000</code>
+            Unable to connect to the backend server. Please ensure the API is running at <code className="px-2 py-1 bg-[var(--color-mist)] rounded">localhost:5001</code>
           </p>
         </div>
       </div>
@@ -103,7 +103,7 @@ export default function TaskList() {
           <div className="flex items-center justify-between mb-4">
             <h1
               style={{ fontFamily: 'var(--font-serif)', color: 'var(--color-ink)' }}
-              className="text-5xl sm:text-6xl lg:text-7xl font-bold leading-none"
+              className="text-4xl sm:text-5xl font-bold leading-none"
             >
               Task Manager
             </h1>

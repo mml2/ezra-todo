@@ -7,11 +7,11 @@ import { test, expect, ALICE } from '../fixtures/test';
  * case exercises the full UI -> API -> DB path with no mocks.
  */
 
-/** Computed background colour of a priority by its CSS var (see index.css). */
+/** Computed background colour of a priority accent bar (see TaskItem priorityColors). */
 const PRIORITY_RGB = {
-  Low: 'rgb(107, 107, 107)', // --color-stone
-  Medium: 'rgb(217, 119, 6)', // --color-amber
-  High: 'rgb(220, 38, 38)', // --color-ruby
+  Low: 'rgb(79, 115, 85)', // Paper priority ink #4f7355
+  Medium: 'rgb(138, 106, 22)', // Paper priority ink #8a6a16
+  High: 'rgb(162, 59, 45)', // Paper priority ink #a23b2d
 } as const;
 
 /** A YYYY-MM-DD date `days` from today, for the <input type="date"> field. */

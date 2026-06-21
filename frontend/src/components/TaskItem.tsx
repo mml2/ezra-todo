@@ -54,9 +54,9 @@ export default function TaskItem({ task }: TaskItemProps) {
   }
 
   const priorityColors = {
-    [TaskPriority.Low]: 'var(--color-stone)',
-    [TaskPriority.Medium]: 'var(--color-amber)',
-    [TaskPriority.High]: 'var(--color-ruby)',
+    [TaskPriority.Low]: '#4f7355',
+    [TaskPriority.Medium]: '#8a6a16',
+    [TaskPriority.High]: '#a23b2d',
   };
 
   return (
@@ -140,7 +140,7 @@ export default function TaskItem({ task }: TaskItemProps) {
                     >
                       {formatDate(task.dueDate)}
                       {isOverdue && (
-                        <span className="ml-2 px-2 py-0.5 bg-red-100 text-red-700 rounded uppercase text-[10px] font-bold tracking-wide">
+                        <span className="ml-2 px-2 py-0.5 rounded uppercase text-[10px] font-bold tracking-wide" style={{ background: '#f6e8e4', color: '#a23b2d' }}>
                           Overdue
                         </span>
                       )}
@@ -211,7 +211,7 @@ export default function TaskItem({ task }: TaskItemProps) {
       </div>
 
       {/* Hover Effect Gradient */}
-      <div className="absolute inset-0 bg-gradient-to-r from-transparent to-amber-50 opacity-0 group-hover:opacity-5 transition-opacity pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-r from-transparent to-purple-50 opacity-0 group-hover:opacity-5 transition-opacity pointer-events-none" />
     </div>
   );
 }
