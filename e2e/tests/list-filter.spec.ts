@@ -169,9 +169,13 @@ test.describe('List, filter & stats', () => {
     await expect(taskListPage.statValue('Active')).toHaveText('1');
     await expect(taskListPage.statValue('Complete')).toHaveText('1');
 
-    // Promote a Todo task to Done via the in-card status select; stats follow.
+    // Promote a Todo task to Done via the in-card status pill (To Do -> Active
+    // -> Done, one click each); stats follow.
     const todoCard = taskListPage.card('Todo A');
-    await todoCard.locator('select').nth(1).selectOption({ label: 'Done' });
+    await taskListPage.advanceStatus(todoCard);
+    await expect(taskListPage.cardStatusBadge(todoCard)).toHaveText('Active');
+    await taskListPage.advanceStatus(todoCard);
+    await expect(taskListPage.cardStatusBadge(todoCard)).toHaveText('Done');
 
     await expect(taskListPage.statValue('To Do')).toHaveText('1');
     await expect(taskListPage.statValue('Complete')).toHaveText('2');
