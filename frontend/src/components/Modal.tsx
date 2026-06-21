@@ -39,12 +39,17 @@ export default function Modal({ isOpen, onClose, children }: ModalProps) {
       role="dialog"
       aria-modal="true"
       onMouseDown={handleBackdropClick}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in"
-      style={{ background: 'rgba(28, 27, 24, 0.45)', backdropFilter: 'blur(2px)' }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-6 sm:p-8 animate-fade-in"
+      style={{ background: 'rgba(28, 27, 24, 0.6)', backdropFilter: 'blur(3px)' }}
     >
       <div
         ref={panelRef}
-        className="editorial-card accent-border w-full max-w-lg max-h-[90vh] overflow-y-auto p-8 animate-scale-in"
+        className="w-full max-w-3xl max-h-[90vh] overflow-y-auto p-8 sm:p-12 animate-scale-in"
+        style={{
+          background: 'white',
+          borderRadius: 'var(--radius)',
+          boxShadow: '0 30px 70px -15px rgba(28, 27, 24, 0.45)',
+        }}
       >
         {children}
       </div>
