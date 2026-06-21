@@ -100,19 +100,31 @@ export default function TaskList() {
     done: allTasksList.filter(t => t.status === TaskStatus.Done).length || 0,
   };
 
+  const statTiles = [
+    { label: 'Total', value: stats.total, color: 'var(--color-ink)' },
+    { label: 'To Do', value: stats.todo, color: 'var(--color-stone)' },
+    { label: 'Active', value: stats.inProgress, color: 'var(--color-amber)' },
+    { label: 'Complete', value: stats.done, color: 'var(--color-emerald)' },
+  ];
+
   return (
-    <div className="min-h-screen py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen py-12 px-4 sm:px-6">
+      <div className="max-w-[880px] mx-auto">
         {/* Header */}
-        <header className="mb-12 animate-slide-up">
-          <div className="flex items-center justify-between mb-4">
-            <h1
-              style={{ fontFamily: 'var(--font-serif)', color: 'var(--color-ink)' }}
-              className="text-4xl sm:text-5xl font-bold leading-none"
-            >
-              Task Manager
-            </h1>
-            <div className="flex items-center gap-4">
+        <header className="mb-8 animate-slide-up">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h1
+                style={{ fontFamily: 'var(--font-serif)', color: 'var(--color-ink)' }}
+                className="text-2xl font-bold leading-none"
+              >
+                Task Manager
+              </h1>
+              <p style={{ color: 'var(--color-stone)' }} className="text-sm mt-1.5">
+                A calm, deliberate way to track your work.
+              </p>
+            </div>
+            <div className="flex items-center gap-4 shrink-0">
               {user?.username && (
                 <span style={{ color: 'var(--color-stone)' }} className="text-sm font-semibold">
                   {user.username}
@@ -121,66 +133,41 @@ export default function TaskList() {
               <button
                 onClick={handleLogout}
                 style={{ background: 'var(--color-mist)', color: 'var(--color-stone)' }}
-                className="px-4 py-2 text-sm font-semibold uppercase tracking-wide rounded-sm hover:bg-[var(--color-stone)] hover:text-white transition-colors"
+                className="px-4 py-2 text-sm font-semibold rounded-sm hover:bg-[var(--color-stone)] hover:text-white transition-colors"
               >
                 Logout
               </button>
             </div>
           </div>
-          <p style={{ color: 'var(--color-stone)' }} className="text-lg max-w-2xl">
-            An editorial approach to productivity. Curate your work with precision and intention.
-          </p>
         </header>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8 animate-slide-up stagger-1">
-          <div className="editorial-card p-6 group cursor-default">
-            <div className="flex items-start justify-between mb-3">
-              <span style={{ fontFamily: 'var(--font-serif)', color: 'var(--color-stone)' }} className="text-xs uppercase tracking-widest font-semibold">
-                Total
+        {/* Stat strip — one bordered card with hairline dividers */}
+        <div
+          className="editorial-card mb-8 animate-slide-up stagger-1 flex divide-x"
+          style={{ borderColor: 'var(--color-mist)' }}
+        >
+          {statTiles.map((tile) => (
+            <div
+              key={tile.label}
+              data-stat={tile.label}
+              className="flex-1 px-5 py-4"
+              style={{ borderColor: 'var(--color-mist)' }}
+            >
+              <span
+                style={{ color: 'var(--color-stone)' }}
+                className="block text-xs uppercase tracking-widest font-semibold"
+              >
+                {tile.label}
               </span>
-              <div className="w-2 h-2 rounded-full bg-[var(--color-ink)] opacity-30 group-hover:opacity-100 transition-opacity"></div>
+              <p
+                data-stat-value
+                style={{ fontFamily: 'var(--font-mono)', color: tile.color }}
+                className="text-2xl font-semibold mt-1.5"
+              >
+                {tile.value}
+              </p>
             </div>
-            <p style={{ fontFamily: 'var(--font-serif)', color: 'var(--color-ink)' }} className="text-4xl font-bold">
-              {stats.total}
-            </p>
-          </div>
-
-          <div className="editorial-card p-6 group cursor-default">
-            <div className="flex items-start justify-between mb-3">
-              <span style={{ fontFamily: 'var(--font-serif)', color: 'var(--color-stone)' }} className="text-xs uppercase tracking-widest font-semibold">
-                To Do
-              </span>
-              <div className="w-2 h-2 rounded-full bg-[var(--color-stone)] opacity-50 group-hover:opacity-100 transition-opacity"></div>
-            </div>
-            <p style={{ fontFamily: 'var(--font-serif)', color: 'var(--color-stone)' }} className="text-4xl font-bold">
-              {stats.todo}
-            </p>
-          </div>
-
-          <div className="editorial-card p-6 group cursor-default accent-border">
-            <div className="flex items-start justify-between mb-3">
-              <span style={{ fontFamily: 'var(--font-serif)', color: 'var(--color-amber)' }} className="text-xs uppercase tracking-widest font-semibold">
-                Active
-              </span>
-              <div className="w-2 h-2 rounded-full bg-[var(--color-amber)] opacity-50 group-hover:opacity-100 group-hover:animate-pulse transition-opacity"></div>
-            </div>
-            <p style={{ fontFamily: 'var(--font-serif)', color: 'var(--color-amber)' }} className="text-4xl font-bold">
-              {stats.inProgress}
-            </p>
-          </div>
-
-          <div className="editorial-card p-6 group cursor-default">
-            <div className="flex items-start justify-between mb-3">
-              <span style={{ fontFamily: 'var(--font-serif)', color: 'var(--color-emerald)' }} className="text-xs uppercase tracking-widest font-semibold">
-                Complete
-              </span>
-              <div className="w-2 h-2 rounded-full bg-[var(--color-emerald)] opacity-50 group-hover:opacity-100 transition-opacity"></div>
-            </div>
-            <p style={{ fontFamily: 'var(--font-serif)', color: 'var(--color-emerald)' }} className="text-4xl font-bold">
-              {stats.done}
-            </p>
-          </div>
+          ))}
         </div>
 
         {/* Controls Bar */}

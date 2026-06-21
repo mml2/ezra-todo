@@ -101,9 +101,7 @@ export class TaskListPage {
 
   /** Stat tile value by its label (Total / To Do / Active / Complete). */
   statValue(label: 'Total' | 'To Do' | 'Active' | 'Complete'): Locator {
-    return this.page
-      .locator('.editorial-card', { hasText: new RegExp(`^\\s*${label}`) })
-      .locator('p.text-4xl');
+    return this.page.locator(`[data-stat="${label}"] [data-stat-value]`);
   }
 
   emptyState(): Locator {
