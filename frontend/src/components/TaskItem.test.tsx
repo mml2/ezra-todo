@@ -23,44 +23,33 @@ describe('TaskItem', () => {
     expect(screen.getByText('Test Description')).toBeInTheDocument();
   });
 
-  it('displays task status badge', () => {
+  it('displays the clickable status pill', () => {
     renderWithProviders(<TaskItem task={mockTask} />);
 
-    // Status badge exists (there may be multiple "To Do" texts, including in select options)
-    const statusBadges = screen.getAllByText('To Do');
-    expect(statusBadges.length).toBeGreaterThan(0);
+    const statusPill = screen.getByRole('button', { name: 'To Do' });
+    expect(statusPill).toBeInTheDocument();
   });
 
-  it('displays task priority dropdown', () => {
+  it('displays the static priority pill', () => {
     renderWithProviders(<TaskItem task={mockTask} />);
 
-    const prioritySelect = screen.getByDisplayValue('Medium');
-    expect(prioritySelect).toBeInTheDocument();
-    expect(prioritySelect.tagName).toBe('SELECT');
+    // Priority is display-only (no <select> on the card).
+    expect(screen.getByText('Medium')).toBeInTheDocument();
+    expect(document.querySelector('select')).toBeNull();
   });
 
-  it('displays status dropdown for Todo tasks', () => {
-    renderWithProviders(<TaskItem task={mockTask} />);
-
-    const statusSelect = screen.getByDisplayValue('To Do');
-    expect(statusSelect).toBeInTheDocument();
-    expect(statusSelect.tagName).toBe('SELECT');
-  });
-
-  it('displays status dropdown for InProgress tasks', () => {
+  it('shows the status pill labelled "Active" for InProgress tasks', () => {
     const inProgressTask: Task = { ...mockTask, status: TaskStatus.InProgress };
     renderWithProviders(<TaskItem task={inProgressTask} />);
 
-    const statusSelect = screen.getByDisplayValue('In Progress');
-    expect(statusSelect).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Active' })).toBeInTheDocument();
   });
 
-  it('displays status dropdown for Done tasks', () => {
+  it('shows the status pill labelled "Done" for Done tasks', () => {
     const doneTask: Task = { ...mockTask, status: TaskStatus.Done };
     renderWithProviders(<TaskItem task={doneTask} />);
 
-    const statusSelect = screen.getByDisplayValue('Done');
-    expect(statusSelect).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Done' })).toBeInTheDocument();
   });
 
   it('applies line-through styling to completed tasks', () => {
@@ -138,26 +127,15 @@ describe('TaskItem', () => {
     expect(screen.getByText(/Jun 15, 2026/)).toBeInTheDocument();
   });
 
-  it('triggers status change when dropdown option is selected', async () => {
+  it('advances status when the status pill is clicked', async () => {
     const user = userEvent.setup();
     renderWithProviders(<TaskItem task={mockTask} />);
 
-    const statusSelect = screen.getByDisplayValue('To Do');
-    await user.selectOptions(statusSelect, TaskStatus.InProgress);
+    const statusPill = screen.getByRole('button', { name: 'To Do' });
+    await user.click(statusPill);
 
-    // Verify the change event was triggered (the dropdown value won't update without parent re-render)
-    expect(statusSelect).toBeInTheDocument();
-  });
-
-  it('triggers priority change when dropdown option is selected', async () => {
-    const user = userEvent.setup();
-    renderWithProviders(<TaskItem task={mockTask} />);
-
-    const prioritySelect = screen.getByDisplayValue('Medium');
-    await user.selectOptions(prioritySelect, TaskPriority.High);
-
-    // Verify the change event was triggered (the dropdown value won't update without parent re-render)
-    expect(prioritySelect).toBeInTheDocument();
+    // The mutation fires; without a parent re-render the label stays put.
+    expect(statusPill).toBeInTheDocument();
   });
 
   it('deletes task when user confirms', async () => {
