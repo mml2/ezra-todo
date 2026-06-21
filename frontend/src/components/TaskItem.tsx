@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useUpdateTaskStatus, useDeleteTask } from '../hooks/useTasks';
 import { Task, TaskStatus, TaskPriority } from '../types/task';
 import TaskForm from './TaskForm';
+import Modal from './Modal';
 
 interface TaskItemProps {
   task: Task;
@@ -65,20 +66,16 @@ export default function TaskItem({ task }: TaskItemProps) {
   const isOverdue =
     task.dueDate && new Date(task.dueDate) < new Date() && task.status !== TaskStatus.Done;
 
-  if (isEditing) {
-    return (
-      <div className="editorial-card p-8 animate-scale-in">
+  return (
+    <div className="editorial-card p-7">
+      <Modal isOpen={isEditing} onClose={() => setIsEditing(false)}>
         <TaskForm
           task={task}
           onSuccess={() => setIsEditing(false)}
           onCancel={() => setIsEditing(false)}
         />
-      </div>
-    );
-  }
+      </Modal>
 
-  return (
-    <div className="editorial-card p-6">
       <div className="flex items-start gap-4">
         {/* Priority dot */}
         <span

@@ -14,8 +14,6 @@ export class TaskListPage {
   readonly priorityFilter: Locator;
   readonly prevButton: Locator;
   readonly nextButton: Locator;
-  /** The create-form toggle in its open state (same button as newTaskButton). */
-  readonly cancelFormButton: Locator;
   /** All task cards in list order (newest first). */
   readonly taskCards: Locator;
 
@@ -30,7 +28,6 @@ export class TaskListPage {
     this.priorityFilter = page.locator('select.select-editorial').nth(1);
     this.prevButton = page.getByRole('button', { name: '← Prev' });
     this.nextButton = page.getByRole('button', { name: 'Next →' });
-    this.cancelFormButton = page.getByRole('button', { name: '✕ Cancel' });
     this.taskCards = page.locator('div.space-y-3 > div.animate-slide-up');
   }
 
