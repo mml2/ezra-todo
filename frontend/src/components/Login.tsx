@@ -55,11 +55,11 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="editorial-card w-full max-w-md">
+      <div className="editorial-card w-full max-w-md p-8">
         <div className="border-b border-[var(--color-mist)] pb-6 mb-6">
           <h1
             style={{ fontFamily: 'var(--font-serif)', color: 'var(--color-ink)' }}
-            className="text-3xl font-bold"
+            className="text-2xl font-bold"
           >
             Welcome back
           </h1>
