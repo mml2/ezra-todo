@@ -125,7 +125,7 @@ export default function TaskList() {
                 A calm, deliberate way to track your work.
               </p>
             </div>
-            <div className="flex items-center gap-4 shrink-0">
+            <div className="flex items-center gap-6 shrink-0">
               {user?.username && (
                 <span style={{ color: 'var(--color-stone)' }} className="text-sm font-semibold">
                   {user.username}

@@ -38,6 +38,12 @@ const PRIORITY_COLOR: Record<TaskPriority, string> = {
   [TaskPriority.High]: '#a23b2d',
 };
 
+const PRIORITY_BG: Record<TaskPriority, string> = {
+  [TaskPriority.Low]: '#e8efe9',
+  [TaskPriority.Medium]: '#f4ecd9',
+  [TaskPriority.High]: '#f6e2dd',
+};
+
 export default function TaskItem({ task }: TaskItemProps) {
   const [isEditing, setIsEditing] = useState(false);
   const updateStatus = useUpdateTaskStatus();
@@ -67,7 +73,7 @@ export default function TaskItem({ task }: TaskItemProps) {
     task.dueDate && new Date(task.dueDate) < new Date() && task.status !== TaskStatus.Done;
 
   return (
-    <div className="editorial-card p-7">
+    <div className="editorial-card px-7 py-8">
       <Modal isOpen={isEditing} onClose={() => setIsEditing(false)}>
         <TaskForm
           task={task}
@@ -77,28 +83,43 @@ export default function TaskItem({ task }: TaskItemProps) {
       </Modal>
 
       <div className="flex items-start gap-4">
-        {/* Priority dot */}
+        {/* Priority dot — aligned to the title's first line */}
         <span
-          className={`priority-dot mt-2 flex-shrink-0 ${PRIORITY_DOT[task.priority]}`}
+          className={`priority-dot mt-[0.45rem] flex-shrink-0 ${PRIORITY_DOT[task.priority]}`}
           aria-hidden="true"
         />
 
         <div className="flex-1 min-w-0">
-          {/* Title + clickable status pill */}
-          <div className="flex items-start justify-between gap-4">
-            <h3
-              style={{
-                fontFamily: 'var(--font-serif)',
-                color:
-                  task.status === TaskStatus.Done ? 'var(--color-stone)' : 'var(--color-ink)',
-              }}
-              className={`text-lg font-semibold leading-tight transition-all ${
-                task.status === TaskStatus.Done ? 'line-through opacity-60' : ''
-              }`}
-            >
-              {task.title}
-            </h3>
+          {/* Title */}
+          <h3
+            style={{
+              fontFamily: 'var(--font-sans)',
+              color:
+                task.status === TaskStatus.Done ? 'var(--color-stone)' : 'var(--color-ink)',
+            }}
+            className={`text-lg font-bold leading-tight transition-all ${
+              task.status === TaskStatus.Done ? 'line-through opacity-60' : ''
+            }`}
+          >
+            {task.title}
+          </h3>
 
+          {/* Description */}
+          {task.description && (
+            <p
+              style={{ color: 'var(--color-stone)', fontFamily: 'var(--font-sans)' }}
+              className="text-sm leading-relaxed mt-2"
+            >
+              {task.description}
+            </p>
+          )}
+
+          {/* Meta row — status pill, priority pill, then due/created */}
+          <div
+            className="flex flex-wrap items-center gap-x-3 gap-y-2 mt-4 text-sm"
+            style={{ color: 'var(--color-stone)', fontFamily: 'var(--font-sans)' }}
+          >
+            {/* Clickable status pill — click to advance */}
             <button
               type="button"
               onClick={handleAdvanceStatus}
@@ -106,86 +127,60 @@ export default function TaskItem({ task }: TaskItemProps) {
               title="Click to advance status"
               className={`status-badge flex-shrink-0 cursor-pointer transition-opacity hover:opacity-80 disabled:opacity-50 ${STATUS_CLASS[task.status]}`}
             >
+              <span
+                aria-hidden="true"
+                className="inline-block w-1.5 h-1.5 rounded-full"
+                style={{ background: 'currentColor' }}
+              />
               {STATUS_LABEL[task.status]}
             </button>
-          </div>
 
-          {/* Description */}
-          {task.description && (
-            <p
-              style={{ color: 'var(--color-stone)' }}
-              className="text-sm leading-relaxed mt-2"
-            >
-              {task.description}
-            </p>
-          )}
-
-          {/* Meta row */}
-          <div
-            className="flex flex-wrap items-center gap-x-3 gap-y-2 mt-4 text-xs"
-            style={{ color: 'var(--color-stone)' }}
-          >
-            <span className="flex items-center gap-1.5">
-              <span className="opacity-60 uppercase tracking-wider">Created</span>
-              <span style={{ fontFamily: 'var(--font-mono)' }}>{formatDate(task.createdAt)}</span>
-            </span>
-
-            {task.dueDate && (
-              <>
-                <span className="opacity-30">•</span>
-                <span className="flex items-center gap-1.5">
-                  <span className="opacity-60 uppercase tracking-wider">Due</span>
-                  <span
-                    style={{
-                      fontFamily: 'var(--font-mono)',
-                      color: isOverdue ? 'var(--color-ruby)' : 'inherit',
-                    }}
-                  >
-                    {formatDate(task.dueDate)}
-                  </span>
-                  {isOverdue && (
-                    <span
-                      className="px-2 py-0.5 rounded uppercase text-[10px] font-bold tracking-wide"
-                      style={{ background: '#f6e8e4', color: '#a23b2d' }}
-                    >
-                      Overdue
-                    </span>
-                  )}
-                </span>
-              </>
-            )}
-
-            <span className="opacity-30">•</span>
             {/* Static priority pill — changed only via the Edit form */}
             <span
               data-priority={task.priority}
               className="status-badge"
               style={{
-                background: 'transparent',
+                background: PRIORITY_BG[task.priority],
                 color: PRIORITY_COLOR[task.priority],
-                border: `1px solid ${PRIORITY_COLOR[task.priority]}`,
-                padding: '0.125rem 0.625rem',
               }}
             >
               {task.priority}
             </span>
+
+            {task.dueDate && (
+              <span className="flex items-center gap-1.5">
+                <span style={{ color: isOverdue ? 'var(--color-ruby)' : 'inherit' }}>
+                  Due {formatDate(task.dueDate)}
+                </span>
+                {isOverdue && (
+                  <span
+                    className="px-2 py-0.5 rounded uppercase text-[10px] font-bold tracking-wide"
+                    style={{ background: '#f6e8e4', color: '#a23b2d' }}
+                  >
+                    Overdue
+                  </span>
+                )}
+              </span>
+            )}
+
+            <span>Created {formatDate(task.createdAt)}</span>
           </div>
         </div>
 
-        {/* Ghost action buttons */}
-        <div className="flex flex-shrink-0 gap-1">
+        {/* Outlined action buttons, pinned top-right */}
+        <div className="flex flex-shrink-0 gap-2">
           <button
             onClick={() => setIsEditing(true)}
-            className="px-3 py-1.5 text-xs font-semibold rounded-sm transition-colors hover:bg-[var(--color-mist)]"
-            style={{ color: 'var(--color-stone)' }}
+            className="px-4 py-1.5 text-sm font-semibold rounded-lg border transition-colors hover:bg-[var(--color-mist)]"
+            style={{ color: 'var(--color-stone)', borderColor: 'var(--color-line-strong)' }}
           >
             Edit
           </button>
           <button
             onClick={handleDelete}
             disabled={deleteTask.isPending}
-            className="px-3 py-1.5 text-xs font-semibold rounded-sm transition-colors hover:bg-[var(--color-mist)] disabled:opacity-50"
-            style={{ color: 'var(--color-ruby)' }}
+            className="px-4 py-1.5 text-sm font-semibold rounded-lg border transition-colors hover:bg-[var(--color-mist)] disabled:opacity-50"
+            style={{ color: 'var(--color-stone)', borderColor: 'var(--color-line-strong)' }}
           >
             Delete
           </button>
