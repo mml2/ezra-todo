@@ -54,17 +54,24 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="editorial-card w-full max-w-md p-8">
-        <div className="border-b border-[var(--color-mist)] pb-6 mb-6">
+    <div className="min-h-screen flex items-center justify-center p-6">
+      <div className="w-full max-w-[400px]">
+        <span
+          style={{ fontFamily: 'var(--font-serif)', color: 'var(--color-ink)' }}
+          className="block text-lg font-bold"
+        >
+          Ezra
+        </span>
+
+        <div className="mt-10 mb-8">
           <h1
             style={{ fontFamily: 'var(--font-serif)', color: 'var(--color-ink)' }}
-            className="text-2xl font-bold"
+            className="text-5xl font-bold tracking-tight"
           >
             Welcome back
           </h1>
-          <p style={{ color: 'var(--color-stone)' }} className="text-sm mt-2">
-            Sign in to Ezra to continue
+          <p style={{ color: 'var(--color-stone)' }} className="text-base mt-3">
+            Sign in to continue.
           </p>
         </div>
 
@@ -154,6 +161,10 @@ export default function Login() {
             )}
           </button>
         </form>
+
+        <p style={{ color: 'var(--color-stone)' }} className="text-sm mt-8 opacity-70">
+          Use any username — this is a prototype.
+        </p>
       </div>
     </div>
   );
