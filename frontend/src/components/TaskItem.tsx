@@ -73,7 +73,7 @@ export default function TaskItem({ task }: TaskItemProps) {
     task.dueDate && new Date(task.dueDate) < new Date() && task.status !== TaskStatus.Done;
 
   return (
-    <div className="editorial-card p-7">
+    <div className="editorial-card px-7 py-8">
       <Modal isOpen={isEditing} onClose={() => setIsEditing(false)}>
         <TaskForm
           task={task}
@@ -83,9 +83,9 @@ export default function TaskItem({ task }: TaskItemProps) {
       </Modal>
 
       <div className="flex items-start gap-4">
-        {/* Priority dot */}
+        {/* Priority dot — aligned to the title's first line */}
         <span
-          className={`priority-dot mt-1.5 flex-shrink-0 ${PRIORITY_DOT[task.priority]}`}
+          className={`priority-dot mt-[0.45rem] flex-shrink-0 ${PRIORITY_DOT[task.priority]}`}
           aria-hidden="true"
         />
 
