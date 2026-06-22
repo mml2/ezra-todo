@@ -13,10 +13,13 @@ A production-ready task management application built as a full-stack take-home a
 | Validation | FluentValidation (server) · Zod (client) |
 | Logging | Serilog (file + console, daily rolling) |
 | Testing (backend) | xUnit + Moq · WebApplicationFactory |
-| Frontend | React 18 + TypeScript + Vite |
+| Frontend | React 19 + TypeScript + Vite |
 | Styling | Tailwind CSS (Editorial Precision design system) |
+| Auth (client) | JWT bearer · React Router · AuthContext |
 | State / data | TanStack Query (React Query) |
 | Testing (frontend) | Vitest + React Testing Library |
+| Testing (e2e) | Playwright |
+| CI | GitHub Actions (fast gate · e2e · Claude AI review) |
 
 ---
 
@@ -80,7 +83,7 @@ dotnet test
 dotnet test --collect:"XPlat Code Coverage" --settings coverlet.runsettings
 ```
 
-Current coverage: **97.9% lines · 84.9% branches**
+Current coverage: **95.5% lines · 85.2% branches** (migrations excluded)
 
 ### Frontend
 
@@ -96,6 +99,21 @@ npm run coverage
 
 Current coverage: **96.5% lines · 94.5% branches**
 
+### End-to-end (Playwright)
+
+```bash
+cd e2e
+
+# Install dependencies and browsers (first run only)
+npm install
+npx playwright install chromium
+
+# Run the suite (boots backend + frontend automatically)
+npm test
+```
+
+See [`e2e/README.md`](e2e/README.md) for the page-object structure and the scenarios covered.
+
 ---
 
 ## Project Structure
@@ -104,14 +122,14 @@ Current coverage: **96.5% lines · 94.5% branches**
 ezra-todo/
 ├── backend/
 │   ├── TodoApi/
-│   │   ├── Controllers/        # HTTP layer — thin, delegates to services
-│   │   ├── Services/           # Business logic, returns Result<T>
-│   │   ├── Data/               # EF Core DbContext + repository
-│   │   ├── Models/             # Domain entities (TodoTask)
+│   │   ├── Controllers/        # HTTP layer — thin (AuthController, TasksController)
+│   │   ├── Services/           # Business logic, returns Result<T> (Auth, Token, Task)
+│   │   ├── Data/               # EF Core DbContext + Task/User repositories
+│   │   ├── Models/             # Domain entities (TodoTask, User)
 │   │   ├── DTOs/               # Immutable request/response records
 │   │   ├── Validators/         # FluentValidation validators
 │   │   ├── Migrations/         # EF Core migration history
-│   │   └── Program.cs          # App wiring (DI, middleware, CORS, rate limiting)
+│   │   └── Program.cs          # App wiring (DI, JWT auth, middleware, CORS, rate limiting)
 │   ├── TodoApi.Tests/
 │   │   ├── Controllers/        # Integration tests (WebApplicationFactory + SQLite in-memory)
 │   │   ├── Services/           # Unit tests (Moq)
@@ -120,14 +138,19 @@ ezra-todo/
 │   └── coverlet.runsettings    # Coverage config (excludes migrations)
 ├── frontend/
 │   └── src/
-│       ├── components/         # TaskForm, TaskItem, TaskList
+│       ├── components/         # TaskForm, TaskItem, TaskList, Login, ProtectedRoute
+│       ├── context/            # AuthContext (token + user state)
 │       ├── hooks/              # useTasks, useCreateTask, useUpdateTask, useDeleteTask
-│       ├── services/           # api.ts — typed fetch wrappers
-│       ├── types/              # Task, TaskStatus, TaskPriority
+│       ├── schemas/            # Zod schemas (auth)
+│       ├── services/           # api.ts (typed axios client) + auth.ts
+│       ├── types/              # Task, TaskStatus, TaskPriority, auth
 │       └── test/               # Shared test utilities (renderWithProviders)
+├── e2e/                        # Playwright end-to-end suite (page objects + fixtures)
+├── .github/workflows/          # CI: ci.yml (fast gate), e2e.yml, Claude AI review
 └── docs/
     ├── ADR-007-authentication-strategy.md
     ├── ADR-008-caching-strategy.md
+    ├── E2E-TEST-PLAN.md
     └── PRODUCTIONIZATION.md
 ```
 
@@ -375,7 +398,7 @@ FluentValidation runs at the controller boundary. Services contain defence-in-de
 Redis caching of per-user tasks was considered and **intentionally not built**. The read path is already fast for this workload (indexed reads <10ms, list ~50ms over a handful of rows), stateless JWT auth has no login session to warm a cache against, and a partial-window write-through cache would add dual-write consistency risk with no measured bottleneck to justify it. The "when and how we'd add it correctly" path (cache-aside + short TTL + invalidate-on-write, behind an `ICacheService`) is captured in the ADR. See [ADR-008](docs/ADR-008-caching-strategy.md).
 
 ### Productionization roadmap
-The hardening steps to take this from a reference implementation to a real deployment — DB migration off SQLite, secrets manager for the JWT key, httpOnly-cookie/BFF token storage, token revocation/refresh, OpenTelemetry observability, rate limiting, HTTPS/HSTS, and horizontal scaling — are documented with their current state and recommended change in [`docs/PRODUCTIONIZATION.md`](docs/PRODUCTIONIZATION.md). (CI/CD is intentionally out of scope.)
+The hardening steps to take this from a reference implementation to a real deployment — DB migration off SQLite, secrets manager for the JWT key, httpOnly-cookie/BFF token storage, token revocation/refresh, OpenTelemetry observability, rate limiting, HTTPS/HSTS, and horizontal scaling — are documented with their current state and recommended change in [`docs/PRODUCTIONIZATION.md`](docs/PRODUCTIONIZATION.md).
 
 Full rationale: see [ADR-007](docs/ADR-007-authentication-strategy.md) (authentication) and [ADR-008](docs/ADR-008-caching-strategy.md) (caching) in [`docs/`](docs/).
 
@@ -389,6 +412,22 @@ A pre-commit hook in `~/.claude/settings.json` blocks `gh pr create` until both 
 |-------|-------|---------|
 | Backend | ≥ 90% | ≥ 80% |
 | Frontend | ≥ 90% | ≥ 85% |
+
+---
+
+## Continuous Integration
+
+GitHub Actions workflows in [`.github/workflows/`](.github/workflows/) run on every pull request to `master`:
+
+| Workflow | Trigger | What it does |
+|----------|---------|--------------|
+| `ci.yml` | PR + push to `master` | Fast gate — frontend `tsc --noEmit` + Vitest coverage; backend `dotnet build` + `dotnet test`. Runs in parallel, cancels superseded runs. |
+| `e2e.yml` | PR to `master` | Boots the backend + frontend and runs the Playwright suite (Chromium); uploads the report artifact on failure. |
+| `claude-code-review.yml` | PR | Claude general code review. |
+| `claude-security-review.yml` | PR | Claude security-focused review (injection, authz, secrets, data exposure). |
+| `claude.yml` | `@claude` mention | Responds to `@claude` in issues / PR comments. |
+
+The local coverage gates above are advisory; CI is the enforced backstop that runs for every contributor.
 
 ---
 
@@ -437,7 +476,6 @@ The database file (`todoapp.db`) is gitignored. Migrations are version-controlle
 - Real-time updates via SignalR
 - Task categories and tags
 - Docker containerisation
-- CI/CD pipeline (GitHub Actions)
 - PostgreSQL for production deployments
 - Token refresh endpoint and revocation list
 
