@@ -1,0 +1,12 @@
+bin/
+obj/
+logs/
+TestResults/
+CoverageReport/
+*.db
+*.db-shm
+*.db-wal
+TodoApi.Tests/
+appsettings.Development.json
+**/.vs/
+**/.vscode/

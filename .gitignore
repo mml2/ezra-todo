@@ -1,3 +1,6 @@
+# Build / deploy output
+publish/
+
 # .NET
 bin/
 obj/
