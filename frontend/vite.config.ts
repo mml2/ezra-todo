@@ -7,7 +7,8 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/api': {
-        target: 'http://localhost:5000',
+        // Backend binds to 5001 — :5000 is shadowed by the macOS AirPlay Receiver.
+        target: 'http://localhost:5001',
         changeOrigin: true,
       },
     },
