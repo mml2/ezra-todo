@@ -51,7 +51,7 @@ dotnet ef database update --project TodoApi
 dotnet run --project TodoApi
 ```
 
-API runs at **http://localhost:5000**
+API runs at **http://localhost:5001** (port 5000 is shadowed by the macOS AirPlay Receiver)
 
 ### 2 — Frontend
 
@@ -113,6 +113,33 @@ npm test
 ```
 
 See [`e2e/README.md`](e2e/README.md) for the page-object structure and the scenarios covered.
+
+---
+
+## Build & Deploy
+
+A root `Makefile` is the single entry point for building deployable artifacts. Run `make help` to list all targets.
+
+### Deployable folder (`dotnet publish` + static bundle)
+
+```bash
+make publish        # → publish/backend (the .NET app) + publish/frontend (static SPA)
+```
+
+`publish/backend/` runs with `dotnet TodoApi.dll`; `publish/frontend/` is a static bundle to serve behind any web server. The folder is gitignored.
+
+### Container images (recommended deployable)
+
+Multi-stage Dockerfiles produce runnable images: the backend on the ASP.NET runtime, the frontend as an nginx static server that proxies `/api` to the backend.
+
+```bash
+make docker-up      # docker compose up --build — frontend on http://localhost:3000
+make docker-down    # stop the stack
+```
+
+The backend's `Jwt:Key` is required at startup and has no default in production — supply it via the `JWT_KEY` environment variable (or a secrets manager) before deploying. The compose file falls back to the dev key for local demos only. SQLite data persists on the `todo-data` named volume.
+
+> **Why both?** The Makefile is the developer-facing orchestrator; the Dockerfiles are the genuinely deployable artifact. `make docker` just calls `docker compose build`, so they compose cleanly. A plain shell script was considered but adds little over `make` given the existing `npm run build` / `dotnet publish` commands.
 
 ---
 
@@ -273,7 +300,7 @@ The API uses JWT bearer tokens for authentication. All `/api/tasks` endpoints re
 
 **Login endpoint:**
 ```bash
-POST http://localhost:5000/api/auth/login
+POST http://localhost:5001/api/auth/login
 Content-Type: application/json
 
 {
@@ -299,7 +326,7 @@ Content-Type: application/json
 
 Include the token in the `Authorization` header for all task operations:
 ```bash
-curl -H "Authorization: Bearer <token>" http://localhost:5000/api/tasks
+curl -H "Authorization: Bearer <token>" http://localhost:5001/api/tasks
 ```
 
 Tokens expire after **60 minutes**. On expiry (401 response), the frontend redirects to `/login`.
@@ -327,7 +354,7 @@ Each user only sees and can access their own tasks. Attempting to access another
 
 ## API Reference
 
-Base URL: `http://localhost:5000/api`
+Base URL: `http://localhost:5001/api`
 
 | Method | Endpoint | Description | Auth | Success |
 |--------|----------|-------------|------|---------|
@@ -362,7 +389,7 @@ Errors return RFC 7807 Problem Details:
 ### Example: Create a task
 
 ```bash
-curl -X POST http://localhost:5000/api/tasks \
+curl -X POST http://localhost:5001/api/tasks \
   -H "Content-Type: application/json" \
   -d '{
     "title": "Write integration tests",
@@ -437,10 +464,10 @@ The local coverage gates above are advisory; CI is the enforced backstop that ru
 
 Create `frontend/.env.local`:
 ```bash
-VITE_API_URL=http://localhost:5000/api
+VITE_API_URL=http://localhost:5001/api
 ```
 
-The default is `http://localhost:5000/api` so this is only needed to override.
+The default is `http://localhost:5001/api` so this is only needed to override.
 
 ### Backend
 

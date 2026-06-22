@@ -6,7 +6,7 @@ import { TaskStatus, TaskPriority } from '../types/task';
 import type { Task, CreateTaskDto, UpdateTaskDto, PagedResult } from '../types/task';
 import * as authService from './auth';
 
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = 'http://localhost:5001/api';
 
 // Mock tasks
 const mockTask: Task = {

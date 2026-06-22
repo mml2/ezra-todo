@@ -1,3 +1,9 @@
+# Build / deploy output
+publish/
+
+# coverlet.msbuild per-run coverage output
+coverage.json
+
 # .NET
 bin/
 obj/

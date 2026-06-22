@@ -1,7 +1,7 @@
 import axios from 'axios';
 import type { LoginRequest, AuthResponse } from '../types/auth';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
 
 const TOKEN_KEY = 'ezra_auth_token';
 const USERNAME_KEY = 'ezra_auth_username';

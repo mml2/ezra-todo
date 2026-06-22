@@ -21,7 +21,7 @@ info:
     url: https://opensource.org/licenses/ISC
 
 servers:
-  - url: http://localhost:5000/api
+  - url: http://localhost:5001/api
     description: Local development server
 
 security:
@@ -201,7 +201,7 @@ paths:
               schema:
                 type: string
                 format: uri
-                example: "http://localhost:5000/api/tasks/42"
+                example: "http://localhost:5001/api/tasks/42"
           content:
             application/json:
               schema:
