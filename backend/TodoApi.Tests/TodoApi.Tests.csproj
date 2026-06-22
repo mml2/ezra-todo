@@ -11,6 +11,10 @@
     <Threshold>90,80,90</Threshold>
     <ThresholdType>line,branch,method</ThresholdType>
     <ThresholdStat>total</ThresholdStat>
+    <!-- Exclude EF Core auto-generated migrations + model snapshot, matching
+         coverlet.runsettings, so the MSBuild gate measures the same code. -->
+    <Exclude>[*]TodoApi.Migrations.*,[*]TodoApi.Data.TodoDbContextModelSnapshot</Exclude>
+    <ExcludeByFile>**/Migrations/*.cs</ExcludeByFile>
   </PropertyGroup>
 
   <ItemGroup>
